@@ -21,7 +21,7 @@ if ($Install) {
 }
 $dist = Join-Path $project 'dist'
 [IO.Directory]::CreateDirectory($dist) | Out-Null
-$archive = Join-Path $dist 'BallisticTogether-0.2.0-beta.zip'
+$archive = Join-Path $dist 'BallisticTogether-0.2.1-beta.zip'
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $stream = [IO.File]::Open($archive, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite)

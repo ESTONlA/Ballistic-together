@@ -1,302 +1,215 @@
-<div align="center">
-
 # Ballistic Together
 
-**Bring a friend into the bunker.**
+Play **Ballistic.exe Demo** with a friend over Steam.
 
-A two-player Steam multiplayer mod for **Ballistic.exe Demo**, by **RealEstonia**.
+**0.2.1-beta · 2 players · By RealEstonia**
 
-[Installation](#installation) · [Playing together](#playing-together) · [Troubleshooting](#troubleshooting) · [Building from source](#building-from-source)
+Host a bunker session, send a Steam invite and head to the range together. See your friend's character, name and equipped gun, with walking animations and smoother movement.
 
-</div>
+[Install](#installation) · [Play together](#playing-together) · [Troubleshooting](#troubleshooting) · [Build from source](#building-from-source)
 
----
+## What's included
 
-## What it does
+- Steam hosting, invites and joining by Steam ID.
+- A player list with names, ping and ready status.
+- Host controls to choose a range, travel together, return to the bunker or remove a guest.
+- Animated player models with overhead names.
+- Visible equipped guns and attachments, up to 32 static-mesh parts.
 
-Host a session, invite a friend through Steam, and prepare a range visit together. The multiplayer panel shows the players, ping and ready status, with range and guest controls for the host. Remote characters have overhead names, smoother movement and a model with matching idle/walk animations.
+Gun models are visual copies. Firing, ammo, damage, targets, scores and saves aren't synchronized.
 
-- **Steam hosting and joining** through an in-game panel.
-- **Steam invites** with an ID-based fallback.
-- **Animated remote characters** with smoothed position and rotation.
-- **Overhead names** that turn toward your camera.
-- **Player list** with names, ping, ready status and host/guest roles.
-- **Host controls** for choosing an unlocked supported range, travelling together, returning to the bunker and removing the guest.
-- **Equipped weapon visuals** copied from the player's actual assembled static-mesh parts.
+## 0.2.1-beta patch notes
 
-**Current version: 0.2.0-beta · 2 players**
-
-Two-PC Steam connections were confirmed on the earlier build. The new beta features require another two-PC test, particularly ready-state synchronization, shared travel and equipped weapon appearance. Weapons are cosmetic copies: synchronized firing, ammunition, damage, targets and scores are not part of this update.
-
-## 0.2.0-beta patch notes
-
-- Rebuilt the F8 panel with a player table, clearer connection details and separate host controls.
-- Added player names, native ping readings, ready status and host/guest roles to the player list.
-- Added a Ready / Not ready toggle and a Steam channel for synchronizing lobby state.
-- Added host range selection using unlocked supported maps from the game's range data.
-- Added host-controlled server travel so connected players can load a range together, plus a return-to-bunker action.
-- Added a host-only Remove guest action using the game's kick function.
-- Added frame-based character interpolation, shortest-path rotation smoothing and teleport snapping.
-- Added the game's Knight character with matching idle and walking animations; the older Keeper remains an optional fixed-pose model.
-- Added cosmetic equipped-gun copies using the actual assembled static-mesh parts, including attached parts within the preview limit.
-- Added disconnect cleanup for character, nameplate and weapon visuals.
-- Moved patch notes into this README and removed the separate patch-notes text file.
-
-These notes describe the beta implementation. A successful local rendering or protocol test does not establish a working two-PC range session; see the testing notes below.
-
-### Beta testing status
-
-| Feature | Checked locally | Still needs two PCs |
-| --- | --- | --- |
-| Player movement | Interpolation, rotation wrapping, teleport snapping, matching idle/walk animations | Smoothness under real connection latency |
-| Lobby panel | Native UI rendering, live local player name/ping/ready row, host-only guards | Remote ready status and actual guest removal |
-| Steam lobby data | Packet sender/session validation, stale-session rejection, required bundled API exports | Live ready/weapon delivery and reconnects |
-| Shared range travel | Native server-travel call loaded Azure Swimming Pool with the shooting pawn in a solo test | Both Steam players staying connected across travel and return |
-| Equipped guns | Static-mesh capture, validation, cosmetic rendering and right-hand placement | A real assembled loadout, attachment alignment and weapon changes on the other PC |
-
-This is a beta test build. Local checks do not cover every two-PC gameplay or save-persistence case.
-
-## Before you install
-
-Both players need:
-
-| Requirement | Details |
-| --- | --- |
-| Game | The same version of **Ballistic.exe Demo** on Steam |
-| Accounts | Two PCs with separate signed-in Steam accounts |
-| Mod loader | A UE4SS build compatible with the game's Unreal Engine 5.7 build |
-| Mod | The same Ballistic Together version on both PCs |
-| Steam Overlay | Enabled for Steam invitations |
-
-The local test setup uses **UE4SS 3.0.1 Beta** from the experimental builds. The [official experimental release page](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/experimental-latest) provides the loader downloads and installation-layout notes. New experimental builds can change; keep a loader that already works with your game.
-
-You do **not** need Unreal Editor or a `.pak` file to install the mod. The packaged download includes the native Steam invite bridge.
+- Fixed the crash when a player starts walking after the animation was cleared from memory.
+- Reworked the F8 menu with the game's own buttons and font.
+- Split the connection screen from the lobby, with host controls shown only to the host.
+- Replaced raw map names and connection states with readable labels.
 
 ## Installation
 
-Do these steps on **both PCs**, with the game fully closed.
+Install the same version on **both PCs** and close the game before updating files. You'll each need your own Steam account, the same game version and a working UE4SS installation.
 
-### 1. Find the game folder
+### 1. Find your game folder
 
-In your Steam Library, right-click **Ballistic.exe Demo** and choose **Manage → Browse local files**.
-
-This opens the main game folder. It contains `Ballistic.exe`, a `Ballistic` folder and an `Engine` folder.
+In Steam, right-click **Ballistic.exe Demo → Manage → Browse local files**.
 
 ### 2. Install UE4SS
 
-Skip this step if UE4SS is already installed and working.
+Skip this if your other UE4SS mods already work.
 
-1. Open the [UE4SS experimental downloads](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/experimental-latest).
-2. Download the regular Windows x64 loader archive, rather than GitHub's **Source code** archives.
-3. Extract the loader into:
+Download the Windows x64 loader from the [official experimental releases](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/experimental-latest). Extract it into:
 
-   ```text
-   <game folder>\Ballistic\Binaries\Win64\
-   ```
+```text
+<game folder>\Ballistic\Binaries\Win64\
+```
 
-4. Check that `dwmapi.dll` sits beside `Ballistic-Win64-Shipping.exe`, and that `UE4SS.dll` is inside the `ue4ss` subfolder:
+Your files should look like this:
 
-   ```text
-   Ballistic.exe Demo/
-   ├── Ballistic.exe
-   └── Ballistic/
-       └── Binaries/
-           └── Win64/
-               ├── Ballistic-Win64-Shipping.exe
-               ├── dwmapi.dll
-               └── ue4ss/
-                   ├── UE4SS.dll
-                   └── Mods/
-   ```
+```text
+Ballistic.exe Demo/
+├── Ballistic.exe
+└── Ballistic/
+    └── Binaries/
+        └── Win64/
+            ├── Ballistic-Win64-Shipping.exe
+            ├── dwmapi.dll
+            └── ue4ss/
+                ├── UE4SS.dll
+                └── Mods/
+```
 
-The loader goes beside the **Shipping executable**, not beside the top-level `Ballistic.exe` launcher. Preserve any existing mods when merging folders.
+Put the loader beside **Ballistic-Win64-Shipping.exe**. Keep your existing mods when merging folders.
 
-### 3. Install Ballistic Together
+### 3. Install the mod
 
-Use the packaged **`BallisticTogether-0.2.0-beta.zip`**. Check the repository's [Releases](https://github.com/ESTONlA/Ballistic-together/releases) for packaged downloads. GitHub's **Code → Download ZIP** downloads the source project; it is not a ready-to-install mod and needs the build steps below.
+Get **BallisticTogether-0.2.1-beta.zip** from [Releases](https://github.com/ESTONlA/Ballistic-together/releases).
 
-1. Extract the mod ZIP into the **main game folder** from step 1.
-2. Merge the included `Ballistic` folder with the existing one.
-3. Check the installed mod has this layout:
+1. Extract it into your **main game folder**, where `Ballistic.exe` is.
+2. Merge the included `Ballistic` folder and replace old mod files if asked.
+3. Check that you have:
 
-   ```text
-   Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/
-   ├── enabled.txt
-   ├── Native/
-   │   └── BallisticSteamInvites.dll
-   └── Scripts/
-       ├── main.lua
-       ├── config.lua
-       ├── avatars/
-       ├── lobby/
-       ├── network/
-       ├── shared/
-       └── ui/
-   ```
+```text
+Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/
+├── enabled.txt
+├── Native/
+│   └── BallisticSteamInvites.dll
+└── Scripts/
+    ├── main.lua
+    ├── config.lua
+    ├── avatars/
+    ├── lobby/
+    ├── network/
+    ├── shared/
+    └── ui/
+```
 
-`enabled.txt` is intentionally empty: its presence enables the mod. Keep the subfolders intact. There is no need to add an entry to `mods.json` for this installation.
+The empty `enabled.txt` enables the mod. Keep all the subfolders and the DLL. You don't need to edit `mods.json` or install a `.pak`.
 
-### 4. Enable Steam Overlay and launch
+**Code → Download ZIP** gives you the source code. Use a release ZIP for installation, or follow the build instructions below.
 
-In the game's Steam **Properties → General**, enable Steam Overlay. Launch the game from Steam, then press **F8** to open Ballistic Together.
+### 4. Launch through Steam
 
-If F8 does nothing, start with the troubleshooting table below.
+Enable **Steam Overlay** in the game's Steam properties, launch the game and press **F8**.
 
 ## Playing together
 
 ### Host
 
-1. Launch the game through Steam and press **F8**.
-2. Click **Host session**.
-3. Wait for the bunker to load and the panel status to show **`hosting`**.
-4. Open **F8** again and click **Invite friends**.
-5. Select your friend in Steam's invite picker.
+1. Press **F8 → Host session**.
+2. Wait for the bunker to load.
+3. Open **F8 → Invite friend** and pick your friend in Steam.
 
-The invite button is available when you are hosting, a player slot is free, and the Steam invite bridge is ready.
+### Join
 
-### Join a friend
+Start your game through Steam, then accept the invite. Open **F8** after connecting to see both players.
 
-1. Have the mod installed and your game **already running through Steam**.
-2. Accept the host's invitation in Steam.
-3. The mod connects automatically. Reopen **F8** to check for **`connected`** and **`2/2 players`**.
+Keep the game running before accepting an invite. If you're already in a session, leave it first.
 
-Invites do not currently support launching a closed game into the session. If you are already in another lobby, choose **Leave session** before accepting a new invitation.
+### Join by Steam ID
 
-### Join by ID instead
+Ask the host for their **SteamID64**, the 17-digit account ID. Open **F8**, paste it into the **Host SteamID64** field and click **Join session**. The host needs to have a session open already.
 
-The host can share their **SteamID64**: the 17-digit ID of their public Steam account. This is different from their display name, friend code or custom profile URL.
+### Head to a range
 
-The joining player opens **F8**, enters that number in the host field, and clicks **Join by ID**. The host must already have an open session.
+1. Prepare and save your weapon and ammo using the normal workshop.
+2. Both players click **Ready** in the F8 menu.
+3. The host uses **Change range** to pick a destination, then clicks **Enter range**.
+4. Use **Back to bunker** to return together.
 
-### Go to the range together
+You can visit **Azure Swimming Pool** and **Training sequence** when the host has unlocked them. Use the F8 controls for group travel; the original single-player menus still work separately.
 
-Prepare and save your weapon/ammo loadout using the game's normal workshop controls before readying up. The mod displays an actually equipped gun; it does not grant or equip a weapon for you.
-
-1. Join the same session and check that both players appear in the F8 list.
-2. Each player clicks **Ready**. The list must show both players as **READY**.
-3. The host clicks **Change range** to choose an unlocked supported range, then **Enter range**.
-4. Both players should load into that range. The host can use **Back to bunker** to bring the session back.
-
-Use the F8 host controls for shared travel. The game's original single-player travel menus are not redirected by this mod. The beta allows Azure swimming Pool and Training sequence when unlocked by the host; it does not unlock or add missing maps. If ready status does not reach the other PC, collect diagnostics rather than assuming a local ready label means synchronization worked.
-
-The host can use **Remove guest** to end the guest's connection. Both players may change ready status, but only the host can select a destination or move/remove players.
-
-### Leave a session
-
-Open **F8 → Leave session**. This returns you to the main menu. Closing the panel alone keeps you connected.
+The host can click **Remove guest** to disconnect the other player. To leave, choose **F8 → Leave session**. Closing the menu keeps you connected.
 
 ## Controls
 
-| Control | Action |
+| Key | Action |
 | --- | --- |
-| **F8** | Open or close the multiplayer panel |
-| **Ctrl + F10** | Write connection and invite diagnostics to `UE4SS.log` |
+| **F8** | Open or close the multiplayer menu |
+| **Ctrl + F10** | Write connection details to the log |
 | **Shift + Tab** | Open Steam Overlay with its default shortcut |
 
 ## Troubleshooting
 
-| Problem | What to check |
+| Problem | Try this |
 | --- | --- |
-| **F8 does nothing** | Check the folder layout above, confirm `enabled.txt` exists, and fully restart the game. Look for `[BallisticTogether]` in `UE4SS.log`. |
-| **Invite friends is disabled** | Wait for `hosting`, check that the lobby is not full, and read the panel's Steam status. Both Steam and the game must be running normally. |
-| **The invite picker does not open** | Enable Steam Overlay, restart the game through Steam, and check whether Shift + Tab opens the overlay. |
-| **“Steam is not logged in for this game process”** | Close the game, sign in to Steam, and launch from your Steam Library. |
-| **An accepted invite does nothing** | Start the recipient's game before accepting. Leave any existing lobby and ask the host for a fresh invite. Try the ID fallback if needed. |
-| **Connecting times out or status says `failed`** | Confirm matching game/mod versions and an active host. Use Leave session before retrying, then collect the log if it persists. |
-| **No other player model or name appears** | Check both panels show two players, confirm both installations include the `avatars` folder, and fully restart after updating. Report whether the problem affects one PC or both. |
-| **Ready status stays different on the two PCs** | Confirm both installed the complete beta, including the updated native DLL. Check the lobby metadata line in Ctrl + F10 diagnostics. |
-| **Enter range is disabled** | The host must have a supported range unlocked and every player must be ready. Only the host can start travel. |
-| **Characters slide without walking** | The default Knight model has walking animations. `AvatarModel = 'Keeper'` uses the older fixed pose. |
-| **A friend's gun is missing** | The remote player must actually have an equipped weapon. Both PCs need the beta's updated native bridge; the preview supports up to 32 static-mesh parts. Weapon alignment still needs two-PC visual testing. |
-| **The invite DLL is missing** | Extract the complete packaged mod, including `Native/BallisticSteamInvites.dll`. A source-only download needs to be built first. |
+| F8 does nothing | Check the folder layout and `enabled.txt`, then fully restart. Look for `[BallisticTogether]` in `UE4SS.log`. |
+| Invite friend is disabled | Wait for the bunker to load and check there's a free player slot. Use Ctrl + F10 to check Steam status. |
+| Steam's invite picker doesn't open | Enable Steam Overlay and restart through Steam. Check that Shift + Tab opens it. |
+| Accepting an invite does nothing | Start your game before accepting, leave any existing session and ask for a fresh invite. You can also join by Steam ID. |
+| Connection times out | Check that the host is still in their session and you're both using the same game and mod versions. |
+| Ready status doesn't match | Update the complete mod on both PCs, including the native DLL, and restart. |
+| Enter range is disabled | Everyone needs to be ready, and the host needs to have that range unlocked. |
+| Your friend's model or name is missing | Check both players appear in the menu and both installations have the `avatars` folder. Restart after updating. |
+| Characters don't animate | Use `AvatarModel = 'Knight'`. The optional Keeper model has a fixed pose. |
+| Your friend's gun is missing | They need to have a weapon equipped. Check that both PCs have the same mod version and native DLL. |
 
-The log is here:
+Find the log at:
 
 ```text
 <game folder>\Ballistic\Binaries\Win64\ue4ss\UE4SS.log
 ```
 
-For a bug report, reproduce the issue, press **Ctrl + F10**, then attach the relevant `[BallisticTogether]` log lines. Include the mod and UE4SS versions, whether you were hosting or joining, what each PC's panel showed, and a screenshot if the issue is visual. You can [open an issue on GitHub](https://github.com/ESTONlA/Ballistic-together/issues).
+Still stuck? Press **Ctrl + F10**, then [open an issue](https://github.com/ESTONlA/Ballistic-together/issues) with the relevant log lines. Include your mod and UE4SS versions, who was hosting, what happened on each PC and a screenshot if it helps.
 
-## Updating or uninstalling
+## Updating or removing the mod
 
-**Update:** close the game on both PCs, extract the newer packaged ZIP into each main game folder, and replace the old mod files. Both players should restart with the same version. Keep a copy of `Scripts/config.lua` if you customized it; check for new settings before restoring your changes.
+**Update:** close the game on both PCs, extract the new release and replace the old files. Keep a copy of `Scripts/config.lua` if you've changed it.
 
-**Disable:** close the game and rename the mod's `enabled.txt` to `enabled.disabled.txt`.
+**Disable:** rename `enabled.txt` to `enabled.disabled.txt` while the game is closed.
 
-**Uninstall:** close the game and remove only `Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/`. Leave UE4SS installed if other mods use it.
-
-Ballistic Together does not merge or synchronize player saves.
+**Uninstall:** remove `Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/`. Keep UE4SS if you use it for other mods.
 
 ## Configuration
 
-Edit `Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/Scripts/config.lua` while the game is closed.
+Edit `Scripts/config.lua` inside the installed mod folder with the game closed.
 
-| Setting | Default | Purpose |
+| Setting | Default | What it changes |
 | --- | --- | --- |
-| `HostSteamId` | `''` | Prefill the manual host ID field |
-| `AvatarModel` | `'Knight'` | Animated Knight, or `'Keeper'` for the older fixed-pose model |
-| `SmoothingSpeed` | `14` | Position/rotation catch-up rate; higher values respond faster |
-| `TeleportSnapDistance` | `500` | Snap instead of interpolating jumps larger than this distance in centimetres |
+| `HostSteamId` | `''` | Prefills the host ID field |
+| `AvatarModel` | `'Knight'` | Use `'Keeper'` for the older fixed-pose model |
+| `SmoothingSpeed` | `14` | How quickly remote movement catches up |
+| `TeleportSnapDistance` | `500` | Snap distance in centimetres |
 | `AvatarHeight` | `180` | Character height in centimetres |
-| `AvatarYawOffset` | `-90` | Mesh rotation offset in degrees |
-| `NameplateSize` | `14` | Name text size in world units |
-| `NameplateHeight` | `24` | Name offset above the character |
-| `AvatarRefreshMs` | `16` | Character and nameplate update interval in milliseconds |
+| `AvatarYawOffset` | `-90` | Character rotation offset |
+| `NameplateSize` | `14` | Name text size |
+| `NameplateHeight` | `24` | Name height above the character |
+| `AvatarRefreshMs` | `16` | Visual update interval in milliseconds |
 
-Keep `LobbyMap`, `MaxPlayers = 2` and `Port = 7777` at their defaults for this version.
+Leave `LobbyMap`, `MaxPlayers = 2` and `Port = 7777` at their defaults.
 
 ## Building from source
 
-<details>
-<summary><strong>Developer setup and project layout</strong></summary>
+You'll need Windows, PowerShell and Visual Studio 2022 or Build Tools with **Desktop development with C++** and the Windows SDK.
 
-You need Windows, PowerShell, and Visual Studio 2022 or Build Tools with the **Desktop development with C++** workload and Windows SDK.
-
-From the project directory:
+Run these from the project folder:
 
 ```powershell
-# Compile the native Steam invite bridge and run its local checks.
 .\native\build.ps1 -Test
-
-# Package the mod into dist/.
 .\build.ps1
 ```
 
-When this project is located at `<game folder>\Modding\BallisticTogether`, you can also deploy it directly:
+The ZIP goes into `dist/`. If your checkout is at `<game folder>\Modding\BallisticTogether`, you can install it directly:
 
 ```powershell
 .\build.ps1 -Install
 ```
 
-`-Install` resolves the game folder two directories above the project. If your checkout is elsewhere, use the generated ZIP and follow the installation steps instead. Fully restart the game after deployment.
+Restart the game after installing.
 
-| Path | Contents |
+| Folder | Contents |
 | --- | --- |
-| `src/Scripts/` | Lua source for the panel, sessions, Steam transport and avatars |
-| `native/` | C++ source and build script for Steam invites |
-| `src/Native/` | Generated native DLL |
-| `build.ps1` | Release packaging and local installation |
-| `README.md` | Installation, usage and current beta patch notes |
-| `dev/` | Private diagnostics, captures and test artifacts |
-| `dist/` | Generated release ZIPs |
+| `src/Scripts/` | Lua code for the menu, sessions, Steam transport and player visuals |
+| `native/` | C++ source for Steam invites and lobby data |
+| `src/Native/` | Generated DLL |
+| `dev/` | Local diagnostics and captures, ignored by Git |
+| `dist/` | Release ZIPs, ignored by Git |
 
-Generated binaries, release packages and private test data are ignored by Git. The build output contains the mod files, README, license and contribution guide; UE4SS and game assets are not bundled.
+## Contributing
 
-The Lua code selects the game's compiled Steam Sockets driver in memory. The native bridge uses the already-loaded Steam API for invites and a separate bounded P2P channel for ready state and cosmetic weapon descriptions. It accepts lobby data only from the expected peer and checks the host/session generation. It does not replace the game's Steam DLL or run a separate callback pump. Transport settings are restored when leaving the session.
+Fork the repo, make your changes and open a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.
 
-Player IDs are converted inside the native post-hook while the opaque unique-ID struct is still available; copying that struct through a plain Lua table loses its data in the tested UE4SS build. Render proxies are cleared before mod-driven travel, and world identity changes discard old cached objects rather than dereferencing actors from an unloaded map.
-
-</details>
-
-## Contributing and license
-
-Want to help? Fork the repository, make your changes and open a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and what to include in a bug report.
-
-Ballistic Together uses a custom [source-available license](LICENSE). Personal use, private modifications, GitHub source forks and contributions are permitted. Separate mod uploads, mirrors, binary releases, modpacks and rebranded distributions require prior written permission from **RealEstonia**. Share a link to the official project instead of reuploading it.
-
-GitHub source forks are an explicit exception to the redistribution restriction; public repositories also carry platform rights under [GitHub's licensing guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository). This is not an open-source license.
+You can use the mod, make private changes and fork the source on GitHub. Ask **RealEstonia** before uploading separate builds, mirrors, modpacks or rebranded versions. Share the official project link instead of reuploading it. See [LICENSE](LICENSE) for the full terms.
 
 ---
 
-Made by **RealEstonia**. Built with [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) and the game's existing assets. Unofficial community mod, not affiliated with the game's developers or Valve.
+Made by **RealEstonia**, using [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS). Unofficial community mod.

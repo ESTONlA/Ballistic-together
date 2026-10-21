@@ -19,22 +19,24 @@ function Avatars.create(config)
         self.peers = {}
     end
     function self:prepare()
-        if self.assets and R.valid(self.assets.mesh) and R.valid(self.assets.pose) then return end
         local animated = config.AvatarModel ~= 'Keeper'
-        local mesh = LoadAsset(animated and '/Game/Geometry/Targets/Humanoid_02/Knight.Knight' or '/Game/Geometry/Characters/Bunkerkeeper/Keeper.Keeper')
-        local pose = LoadAsset(animated and '/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_IdleKnight.Humanoid_IdleKnight' or '/Game/Geometry/Characters/Bunkerkeeper/Animations/Keeper_ThumbsUp.Keeper_ThumbsUp')
-        local walk = animated and LoadAsset('/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_WalkKnight.Humanoid_WalkKnight') or nil
+        local meshPath = animated and '/Game/Geometry/Targets/Humanoid_02/Knight.Knight' or '/Game/Geometry/Characters/Bunkerkeeper/Keeper.Keeper'
+        local idlePath = animated and '/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_IdleKnight.Humanoid_IdleKnight' or '/Game/Geometry/Characters/Bunkerkeeper/Animations/Keeper_ThumbsUp.Keeper_ThumbsUp'
+        local walkPath = animated and '/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_WalkKnight.Humanoid_WalkKnight' or nil
+        local mesh, pose = LoadAsset(meshPath), LoadAsset(idlePath)
+        local walk = walkPath and LoadAsset(walkPath) or nil
         assert(R.valid(mesh) and R.valid(pose), 'Lobby character assets unavailable')
         assert(R.name(mesh.Skeleton) == R.name(pose.Skeleton), 'Player animation skeleton mismatch')
         if animated then assert(R.valid(walk) and R.name(walk.Skeleton) == R.name(mesh.Skeleton), 'Walking animation skeleton mismatch') end
         local bounds = mesh:GetBounds()
         local height = bounds.BoxExtent.Z * 2
         assert(height > 20 and height < 1000, 'Unexpected character mesh dimensions')
-        self.assets = {mesh = mesh, pose = pose, walk = walk, animated = animated, scale = (config.AvatarHeight or 180) / height,
+        self.assets = {idlePath = idlePath, walkPath = walkPath, animated = animated, scale = (config.AvatarHeight or 180) / height,
             bottom = bounds.Origin.Z - bounds.BoxExtent.Z}
+        return mesh, pose
     end
     function self:spawn(pawn)
-        self:prepare()
+        local meshAsset, idleAsset = self:prepare()
         local parts, handBone = {}, nil
         local ok, err = pcall(function()
             local world = R.world()
@@ -47,8 +49,8 @@ function Avatars.create(config)
             local mesh = actor.SkeletalMeshComponent
             mesh:SetMobility(2)
             mesh:SetCollisionEnabled(0)
-            mesh:SetSkeletalMeshAsset(self.assets.mesh)
-            mesh:PlayAnimation(self.assets.pose, self.assets.animated)
+            mesh:SetSkeletalMeshAsset(meshAsset)
+            mesh:PlayAnimation(idleAsset, self.assets.animated)
             mesh:SetPosition(0, false)
             mesh:SetPlayRate(self.assets.animated and 1 or 0)
             for _, name in ipairs({'hand_r', 'DEF-hand_R', 'mixamorig:RightHand', 'RightHand'}) do
@@ -88,7 +90,14 @@ function Avatars.create(config)
                 if self.assets.animated then
                     local walking = speed > (peer.walking and 8 or 18)
                     local mesh = peer.parts[1].SkeletalMeshComponent
-                    if walking ~= peer.walking then mesh:PlayAnimation(walking and self.assets.walk or self.assets.pose, true); peer.walking = walking end
+                    if walking ~= peer.walking then
+                        -- Lua userdata does not retain an Unreal asset across engine garbage collection.
+                        -- Resolve immediately before use; the animation instance then owns the active asset.
+                        local animation = LoadAsset(walking and self.assets.walkPath or self.assets.idlePath)
+                        assert(R.valid(animation), 'Player animation unavailable')
+                        mesh:PlayAnimation(animation, true)
+                        peer.walking = walking
+                    end
                     mesh:SetPlayRate(walking and math.max(0.6, math.min(speed / 140, 1.8)) or 1)
                 end
                 local halfHeight = 88

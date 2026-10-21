@@ -44,7 +44,7 @@ function Metadata.create()
         self.localId = Steam.validId(identity) and identity or nil
         if not self.pump then
             self.pump = package.loadlib(directory .. 'BallisticSteamInvites.dll', 'bt_lobby')
-            if not self.pump then self.message = 'Install the matching 0.2.0-beta native bridge on both PCs.'; return end
+            if not self.pump then self.message = 'Install the matching 0.2.1-beta native bridge on both PCs.'; return end
         end
         local host = session:isHost() and self.localId or session.hostId
         local peer
