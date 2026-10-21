@@ -2,7 +2,7 @@
 
 Play **Ballistic.exe Demo** with a friend over Steam.
 
-**0.2.1-beta · 2 players · By RealEstonia**
+**0.2.6-beta · 2 players · By RealEstonia**
 
 Host a bunker session, send a Steam invite and head to the range together. See your friend's character, name and equipped gun, with walking animations and smoother movement.
 
@@ -11,19 +11,15 @@ Host a bunker session, send a Steam invite and head to the range together. See y
 ## What's included
 
 - Steam hosting, invites and joining by Steam ID.
-- A player list with names, ping and ready status.
+- A player list with names, ping, ready/away status and a three-second range countdown.
+- Session chat, quick messages and unread counts.
+- Shared rally markers with distance labels.
+- A session HUD, saved display settings and reconnect to your last host.
 - Host controls to choose a range, travel together, return to the bunker or remove a guest.
 - Animated player models with overhead names.
 - Visible equipped guns and attachments, up to 32 static-mesh parts.
 
 Gun models are visual copies. Firing, ammo, damage, targets, scores and saves aren't synchronized.
-
-## 0.2.1-beta patch notes
-
-- Fixed the crash when a player starts walking after the animation was cleared from memory.
-- Reworked the F8 menu with the game's own buttons and font.
-- Split the connection screen from the lobby, with host controls shown only to the host.
-- Replaced raw map names and connection states with readable labels.
 
 ## Installation
 
@@ -62,7 +58,7 @@ Put the loader beside **Ballistic-Win64-Shipping.exe**. Keep your existing mods 
 
 ### 3. Install the mod
 
-Get **BallisticTogether-0.2.1-beta.zip** from [Releases](https://github.com/ESTONlA/Ballistic-together/releases).
+Get **BallisticTogether-0.2.6-beta.zip** from [Releases](https://github.com/ESTONlA/Ballistic-together/releases).
 
 1. Extract it into your **main game folder**, where `Ballistic.exe` is.
 2. Merge the included `Ballistic` folder and replace old mod files if asked.
@@ -112,20 +108,36 @@ Ask the host for their **SteamID64**, the 17-digit account ID. Open **F8**, past
 ### Head to a range
 
 1. Prepare and save your weapon and ammo using the normal workshop.
-2. Both players click **Ready** in the F8 menu.
-3. The host uses **Change range** to pick a destination, then clicks **Enter range**.
+2. Both players click **Ready** in the F8 menu, or press **F9**. Changing the destination means readying up again.
+3. The host uses **Change range** to pick a destination, then clicks **Enter range**. A three-second countdown starts; use **Cancel countdown** to stop it.
 4. Use **Back to bunker** to return together.
 
 You can visit **Azure Swimming Pool** and **Training sequence** when the host has unlocked them. Use the F8 controls for group travel; the original single-player menus still work separately.
 
 The host can click **Remove guest** to disconnect the other player. To leave, choose **F8 → Leave session**. Closing the menu keeps you connected.
 
+## Chat, markers and settings
+
+Open **F8 → Chat**, or press **Shift + F8**, to message your friend. Use the quick-message buttons when you don't feel like typing. Chat stays with the current session; **Clear local chat** only clears your view.
+
+Press **F7** to mark where you're standing. Your friend sees a rally point and its distance for 25 seconds. **Shift + F7** clears it. Nearby markers stay hidden so the label doesn't cover your view.
+
+Choose **Away** in the lobby when you're taking a break. It clears your ready status; clicking **Ready** brings you back.
+
+In **Settings**, toggle player names, friend guns, rally markers, the session HUD, distance labels or incoming-chat mute. Your choices are saved between launches. You can also copy your Steam ID or save a connection report there.
+
+To rejoin someone, use **Reconnect to last host** on the connection screen. The host needs to have a session open.
+
 ## Controls
 
 | Key | Action |
 | --- | --- |
 | **F8** | Open or close the multiplayer menu |
-| **Ctrl + F10** | Write connection details to the log |
+| **Shift + F8** | Open session chat |
+| **F9** | Toggle ready status |
+| **F7** | Place a rally marker at your position |
+| **Shift + F7** | Clear your rally marker |
+| **Ctrl + F10** | Log connection details and save a report |
 | **Shift + Tab** | Open Steam Overlay with its default shortcut |
 
 ## Troubleshooting
@@ -149,7 +161,7 @@ Find the log at:
 <game folder>\Ballistic\Binaries\Win64\ue4ss\UE4SS.log
 ```
 
-Still stuck? Press **Ctrl + F10**, then [open an issue](https://github.com/ESTONlA/Ballistic-together/issues) with the relevant log lines. Include your mod and UE4SS versions, who was hosting, what happened on each PC and a screenshot if it helps.
+Still stuck? Press **Ctrl + F10** to save `Native/diagnostics.txt` inside the mod folder, then [open an issue](https://github.com/ESTONlA/Ballistic-together/issues) with the relevant log lines. Include your mod and UE4SS versions, who was hosting, what happened on each PC and a screenshot if it helps.
 
 ## Updating or removing the mod
 
@@ -168,6 +180,9 @@ Edit `Scripts/config.lua` inside the installed mod folder with the game closed.
 | `HostSteamId` | `''` | Prefills the host ID field |
 | `AvatarModel` | `'Knight'` | Use `'Keeper'` for the older fixed-pose model |
 | `SmoothingSpeed` | `14` | How quickly remote movement catches up |
+| `InterpolationDelayMs` | `60` | Base movement buffer delay in milliseconds |
+| `MaxInterpolationDelayMs` | `140` | Maximum delay while smoothing uneven updates |
+| `MaxExtrapolationMs` | `80` | Maximum prediction time during a brief update gap |
 | `TeleportSnapDistance` | `500` | Snap distance in centimetres |
 | `AvatarHeight` | `180` | Character height in centimetres |
 | `AvatarYawOffset` | `-90` | Character rotation offset |
@@ -203,6 +218,8 @@ Restart the game after installing.
 | `src/Native/` | Generated DLL |
 | `dev/` | Local diagnostics and captures, ignored by Git |
 | `dist/` | Release ZIPs, ignored by Git |
+
+See [CODEBASE.md](CODEBASE.md) for the module layout and [PATCHNOTES.txt](PATCHNOTES.txt) for release changes.
 
 ## Contributing
 

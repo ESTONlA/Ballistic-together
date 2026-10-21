@@ -12,6 +12,19 @@ Available available;
 Receive receive;
 Accept accept;
 Close close;
+struct PeerState {
+    uint8_t active, connecting, error, relay;
+    int32_t queuedBytes, queuedPackets;
+    uint32_t remoteIp;
+    uint16_t remotePort;
+};
+static_assert(sizeof(PeerState) == 20, "Unexpected Steam P2P state ABI");
+using GetState = bool (__cdecl*)(void*, uint64_t, PeerState*);
+GetState getState;
+constexpr int Reliable = 2;
+constexpr int32_t QueueLimit = 65536;
+uint64_t sentCount = 0, failedCount = 0, receivedCount = 0, rejectedCount = 0, pressureCount = 0;
+std::string lastSent;
 uint64_t host = 0, peer = 0, epoch = 0, receivedAt = 0, sentAt = 0;
 std::string incoming;
 bool started = false;
@@ -50,6 +63,7 @@ bool init() {
     receive = symbol<Receive>(steam, "SteamAPI_ISteamNetworking_ReadP2PPacket");
     accept = symbol<Accept>(steam, "SteamAPI_ISteamNetworking_AcceptP2PSessionWithUser");
     close = symbol<Close>(steam, "SteamAPI_ISteamNetworking_CloseP2PChannelWithUser");
+    getState = symbol<GetState>(steam, "SteamAPI_ISteamNetworking_GetP2PSessionState");
     if (!networking || !send || !available || !receive || !accept || !close || !networking()) return false;
     using RegisterRequest = void (__cdecl*)(RequestCallback*, int);
     symbol<RegisterRequest>(steam, "SteamAPI_RegisterCallback")(&requestCallback, 1202);
@@ -78,13 +92,24 @@ bool ingest(uint64_t sender, const std::string& text, uint64_t localId, uint64_t
     }
     incoming = std::to_string(sender) + "\n" + std::to_string(ready) + "\n" + text.substr(body);
     receivedAt = now;
+    ++receivedCount;
     return true;
 }
 void reset() {
     if (peer && started && networking()) close(networking(), peer, Channel);
     host = peer = epoch = receivedAt = sentAt = 0;
     incoming.clear();
+    lastSent.clear();
+    sentCount = failedCount = receivedCount = rejectedCount = pressureCount = 0;
     write(L"lobby-in.txt", "");
+}
+void transmit(const std::string& packet, const PeerState* state, uint64_t now) {
+    if (packet == lastSent && now - sentAt < 1000) return;
+    if (state && state->queuedBytes > 0 && static_cast<uint64_t>(state->queuedBytes) + packet.size() > QueueLimit) { ++pressureCount; return; }
+    if (packet.size() > Limit) { ++failedCount; return; }
+    if (send(networking(), peer, packet.data(), static_cast<uint32_t>(packet.size()), Reliable, Channel)) {
+        lastSent = packet; sentAt = now; ++sentCount;
+    } else { ++failedCount; sentAt = now; }
 }
 void pump() {
     if (!registered || !userApi() || !loggedOn(userApi()) || !init()) {
@@ -106,21 +131,32 @@ void pump() {
         if (host == localId) epoch = GetTickCount64() ^ localId;
     }
     const auto now = GetTickCount64();
-    if (peer && now - sentAt >= 250) {
+    PeerState state{};
+    const bool hasState = peer && getState && getState(networking(), peer, &state);
+    if (peer && now - sentAt >= 100) {
         accept(networking(), peer);
         const auto packet = "BT020 " + std::to_string(host) + " " + std::to_string(epoch) + " " + std::to_string(ready) + "\n" + command.substr(end + 1);
-        if (packet.size() <= Limit) send(networking(), peer, packet.data(), static_cast<uint32_t>(packet.size()), 0, Channel);
-        sentAt = now;
+        transmit(packet, hasState ? &state : nullptr, now);
     }
     for (int i = 0; i < 16; ++i) {
         uint32_t size = 0;
         if (!available(networking(), &size, Channel)) break;
-        if (size > Limit) { write(L"lobby-status.txt", "Rejected oversized lobby packet."); break; }
+        if (size > Limit) {
+            if (size > 1048576) { reset(); write(L"lobby-status.txt", "Rejected invalid Steam message size."); return; }
+            std::string discard(size, '\0'); uint32_t discarded = 0; uint64_t sender = 0;
+            if (!receive(networking(), &discard[0], size, &discarded, &sender, Channel)) break;
+            ++rejectedCount; continue;
+        }
         char bytes[Limit]; uint32_t length = 0; uint64_t sender = 0;
         if (!receive(networking(), bytes, sizeof(bytes), &length, &sender, Channel)) break;
-        ingest(sender, std::string(bytes, length), localId, now);
+        if (!ingest(sender, std::string(bytes, length), localId, now)) ++rejectedCount;
     }
     write(L"lobby-in.txt", receivedAt && now - receivedAt < 5000 ? incoming : "");
-    write(L"lobby-status.txt", "ready");
+    write(L"lobby-status.txt", hasState && state.error ? "Steam reports a peer connection error." : "ready");
+    write(L"lobby-network.txt", "sent=" + std::to_string(sentCount) + "\nfailed=" + std::to_string(failedCount) +
+        "\nreceived=" + std::to_string(receivedCount) + "\nrejected=" + std::to_string(rejectedCount) +
+        "\nbackpressure=" + std::to_string(pressureCount) + "\nqueued_bytes=" + std::to_string(hasState ? state.queuedBytes : -1) +
+        "\nqueued_packets=" + std::to_string(hasState ? state.queuedPackets : -1) + "\nrelay=" +
+        std::to_string(hasState ? state.relay : -1));
 }
 }

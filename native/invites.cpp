@@ -152,6 +152,26 @@ extern "C" __declspec(dllexport) int bt_lobby(void*) {
     LobbyChannel::pump();
     return 0;
 }
+extern "C" __declspec(dllexport) int bt_copyid(void*) {
+    std::lock_guard<std::mutex> lock(gate);
+    if (!initialize()) { write(L"clipboard-status.txt", "Steam identity unavailable."); return 0; }
+    const auto value = std::to_wstring(getId(userApi()));
+    const auto bytes = (value.size() + 1) * sizeof(wchar_t);
+    const auto memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (!memory) return 0;
+    const auto data = GlobalLock(memory);
+    if (!data) { GlobalFree(memory); return 0; }
+    memcpy(data, value.c_str(), bytes); GlobalUnlock(memory);
+    bool copied = false;
+    if (OpenClipboard(nullptr)) {
+        if (EmptyClipboard() && SetClipboardData(CF_UNICODETEXT, memory)) copied = true;
+        CloseClipboard();
+    }
+    if (!copied) GlobalFree(memory);
+    write(L"clipboard-status.txt", copied ? "Steam ID copied." : "Clipboard is busy. Try again.");
+    return 0;
+}
+#pragma comment(lib, "user32.lib")
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) { module = instance; DisableThreadLibraryCalls(instance); }
     return TRUE;
@@ -179,11 +199,39 @@ int main() {
     if (LobbyChannel::ingest(LobbyChannel::peer, "BT020 76561198000000000 41 1\ngear", LobbyChannel::host, 100)) return 6;
     if (LobbyChannel::ingest(LobbyChannel::peer, "BT020 76561198000000000 42 7\ngear", LobbyChannel::host, 100)) return 7;
     puts("PASS lobby metadata sender/session validation and stale-session rejection");
+    static int sendMode = -1;
+    static uint32_t sendBytes = 0;
+    static bool permitSend = true;
+    LobbyChannel::networking = []() -> void* { return reinterpret_cast<void*>(1); };
+    LobbyChannel::send = [](void*, uint64_t, const void*, uint32_t size, int mode, int) -> bool {
+        sendMode = mode; sendBytes = size; return permitSend;
+    };
+    LobbyChannel::PeerState state{};
+    LobbyChannel::transmit(std::string(20000, 'x'), &state, 1000);
+    if (sendMode != 2 || sendBytes != 20000 || LobbyChannel::sentCount != 1) return 9;
+    LobbyChannel::transmit(std::string(20000, 'x'), &state, 1100);
+    if (LobbyChannel::sentCount != 1) return 10;
+    state.queuedBytes = 60000;
+    LobbyChannel::transmit(std::string(20000, 'y'), &state, 1200);
+    if (LobbyChannel::sentCount != 1 || LobbyChannel::pressureCount != 1) return 11;
+    state.queuedBytes = 0;
+    LobbyChannel::transmit(std::string(20000, 'y'), &state, 1300);
+    if (LobbyChannel::sentCount != 2) return 12;
+    LobbyChannel::transmit(std::string(20000, 'y'), &state, 2400);
+    if (LobbyChannel::sentCount != 3) return 13;
+    permitSend = false;
+    LobbyChannel::transmit(std::string(20000, 'z'), &state, 2600);
+    if (LobbyChannel::failedCount != 1 || LobbyChannel::sentCount != 3 || LobbyChannel::lastSent[0] != 'y') return 14;
+    permitSend = true;
+    LobbyChannel::transmit(std::string(20000, 'z'), &state, 2800);
+    if (LobbyChannel::sentCount != 4 || LobbyChannel::lastSent[0] != 'z') return 15;
+    puts("PASS large snapshots use reliable delivery, duplicate pacing, queue backpressure and recovery");
     const auto bundled = LoadLibraryW(L"../../../../Engine/Binaries/ThirdParty/Steamworks/Steamv161/Win64/steam_api64.dll");
     if (bundled) {
         for (const char* name : {"SteamAPI_SteamNetworking_v006", "SteamAPI_ISteamNetworking_SendP2PPacket",
             "SteamAPI_ISteamNetworking_IsP2PPacketAvailable", "SteamAPI_ISteamNetworking_ReadP2PPacket",
-            "SteamAPI_ISteamNetworking_AcceptP2PSessionWithUser", "SteamAPI_ISteamNetworking_CloseP2PChannelWithUser"}) {
+            "SteamAPI_ISteamNetworking_AcceptP2PSessionWithUser", "SteamAPI_ISteamNetworking_CloseP2PChannelWithUser",
+            "SteamAPI_ISteamNetworking_GetP2PSessionState"}) {
             if (!GetProcAddress(bundled, name)) return 8;
         }
         FreeLibrary(bundled);

@@ -3,20 +3,24 @@ local Steam = require('network.steam')
 local Invites = require('network.invites')
 local Metadata = require('network.metadata')
 local Ranges = require('lobby.ranges')
-local Weapons = require('avatars.weapons')
+local Social = require('lobby.social')
+local Countdown = require('lobby.countdown')
+local Preferences = require('shared.preferences')
 local Session = {}
 
 function Session.create(config)
     assert(config.MaxPlayers == 2 and config.Port == 7777, 'This lobby preview supports two players on Steam port 7777.')
     local self = {phase = 'idle', message = 'Not connected', players = 0, transport = Steam.create(), invites = Invites.create(),
-        metadata = Metadata.create(), localReady = false, playerList = {}, hooks = {}, since = 0, ranges = {}, rangeIndex = 1}
+        metadata = Metadata.create(), social = Social.create(), countdown = Countdown.create(), preferences = Preferences.create(config),
+        localReady = false, playerList = {}, hooks = {}, since = 0, ranges = {}, rangeIndex = 1}
     function self:set(phase, message)
-        if self.phase ~= phase or self.message ~= message then R.log(phase .. ': ' .. message) end
+        if self.phase ~= phase or self.message ~= message then R.log(phase .. ': ' .. message); self.social:add('', message, true) end
         self.phase, self.message = phase, message
     end
     function self:host()
         assert(self.phase == 'idle' or self.phase == 'failed', 'Leave the current lobby first.')
         self.transport:configure()
+        self.social:reset(); self.countdown:cancel(); self.members = nil
         self.localReady, self.hostId = false, nil
         if self.beforeTravel then self.beforeTravel() end
         self.since = os.time()
@@ -27,6 +31,8 @@ function Session.create(config)
         assert(self.phase == 'idle' or self.phase == 'failed', 'Leave the current lobby first.')
         local address = Steam.address(id, config.Port)
         self.hostId, self.localReady = address:match('^steam%.(%d+):'), false
+        self.preferences:remember(self.hostId)
+        self.social:reset(); self.countdown:cancel(); self.members = nil
         if self.beforeTravel then self.beforeTravel() end
         self.transport:configure()
         self.since = os.time()
@@ -36,6 +42,7 @@ function Session.create(config)
     function self:leave()
         if self.beforeTravel then self.beforeTravel() end
         self.invites:clear()
+        self.countdown:cancel(); self.social:mark(nil); self.members = nil
         self.transport:restore()
         self.players = 0
         self.playerList, self.localReady, self.hostId = {}, false, nil
@@ -48,44 +55,19 @@ function Session.create(config)
     function self:ready()
         assert(self:active(), 'Connect before changing ready status.')
         self.localReady = not self.localReady
+        if self.localReady then self.social.away = false else self.countdown:cancel() end
+        for _, row in ipairs(self.playerList) do if row.isLocal then row.ready, row.away = self.localReady, self.social.away end end
+        self.social:add('', self.localReady and 'You are ready.' or 'You are not ready.', true)
     end
     function self:allReady()
+        if not self.localReady then return false end
         if #self.playerList == 0 then return false end
+        if #self.playerList ~= self.players then return false end
+        if self.players > 1 and (not self.metadata.remote or self.metadata.mismatch) then return false end
         for _, row in ipairs(self.playerList) do if row.ready ~= true then return false end end
         return true
     end
-    function self:cycleRange()
-        assert(self:isHost(), 'Only the host can select a range.')
-        if #self.ranges > 0 then self.rangeIndex = self.rangeIndex % #self.ranges + 1 end
-    end
-    function self:travel(destination)
-        assert(self:isHost(), 'Only the host can move the lobby.')
-        assert(destination and Ranges.maps[destination.id] == destination.path, 'Unsupported range destination.')
-        if destination.id ~= 'Bunker_Main' then
-            assert(self:allReady(), 'Every player must be ready before entering the range.')
-            local unlocked = false
-            for _, range in ipairs(self.ranges) do if range.id == destination.id then unlocked = true end end
-            assert(unlocked, 'This range is not unlocked by the host.')
-        end
-        local lib = StaticFindObject('/Script/AdvancedSessions.Default__AdvancedSessionsLibrary')
-        if self.beforeTravel then self.beforeTravel() end
-        assert(lib:ServerTravel(R.world(), destination.path .. '?listen', true, false), 'Server travel was rejected by the game.')
-        self.since, self.localReady = os.time(), false
-        self:set('travelling', 'Loading ' .. destination.name .. ' for all players...')
-    end
-    function self:startRange() self:travel(self.ranges[self.rangeIndex]) end
-    function self:returnToBunker() self:travel({id = 'Bunker_Main', path = config.LobbyMap, name = 'Bunker'}) end
-    function self:kickGuest()
-        assert(self:isHost(), 'Only the host can remove a player.')
-        for _, row in ipairs(self.playerList) do
-            if not row.isLocal and R.valid(row.controller) then
-                local lib = StaticFindObject('/Script/AdvancedSessions.Default__AdvancedSessionsLibrary')
-                assert(lib:KickPlayer(R.world(), row.controller, FText('Removed by the lobby host.')), 'The game rejected the kick request.')
-                return
-            end
-        end
-        error('No connected guest is available.')
-    end
+    require('lobby.travel').install(self, config)
     function self:tick()
         if self.phase == 'idle' or self.phase == 'failed' then return end
         local driver = self.transport:driver()
@@ -119,42 +101,7 @@ function Session.create(config)
             self:set('failed', 'Steam connection was not established. Check the log and launch through Steam.')
         end
     end
-    function self:updatePlayers()
-        if not self:active() then
-            self.playerList = {}
-            self.metadata:tick(self, {}, '')
-            return
-        end
-        local gs = R.gameplay():GetGameState(R.world())
-        local rows, states = {}, R.valid(gs) and gs.PlayerArray or nil
-        if states then
-            assert(#states <= 64, 'Unexpected lobby player count')
-            local pc = R.player()
-            for i = 1, #states do
-                local state = states[i]
-                if R.valid(state) then
-                    local pawn = state:GetPawn()
-                    local isLocal = R.valid(pc) and R.name(pc.PlayerState) == R.name(state)
-                    local name = state:GetPlayerName()
-                    local ok, id = pcall(Metadata.id, state)
-                    rows[#rows + 1] = {state = state, id = R.name(state), pawn = pawn, isLocal = isLocal,
-                        controller = state:GetPlayerController(), steamId = ok and id or nil,
-                        name = type(name) == 'string' and name or name:ToString(), ping = state:GetPingInMilliseconds()}
-                end
-            end
-        end
-        local pc = R.player()
-        local pawn = R.valid(pc) and pc.Pawn or nil
-        local ok, gear = pcall(Weapons.capture, Weapons.equipped(pawn))
-        self.metadata:tick(self, rows, ok and gear or '')
-        for _, row in ipairs(rows) do
-            local remote = self.metadata.remote
-            row.ready = row.isLocal and self.localReady or (remote and remote.id == row.steamId and remote.ready == true) or false
-            row.gear = not row.isLocal and remote and remote.id == row.steamId and remote.gear or ''
-        end
-        table.sort(rows, function(a, b) if a.isLocal ~= b.isLocal then return a.isLocal end return a.id < b.id end)
-        self.playerList = rows
-    end
+    function self:updatePlayers() require('lobby.players').update(self) end
     function self:roster()
         if not self:active() then return {} end
         local peers = {}
@@ -169,6 +116,53 @@ function Session.create(config)
             end)
             self.hooks[event] = {pre, post}
         end
+    end
+    function self:reconnect()
+        assert(self.phase == 'idle' or self.phase == 'failed', 'Leave the current session first.')
+        assert(Steam.validId(self.preferences.lastHost), 'No previous host saved yet.')
+        self:join(self.preferences.lastHost)
+    end
+    function self:chat(message)
+        assert(self:active(), 'Join a session before chatting.')
+        self.social:send(message, 'You')
+    end
+    function self:away()
+        assert(self:active(), 'Join a session first.')
+        self.social.away = not self.social.away
+        self.localReady = false; self.countdown:cancel()
+        for _, row in ipairs(self.playerList) do if row.isLocal then row.ready, row.away = false, self.social.away end end
+        self.social:add('', self.social.away and 'You are away.' or 'You are back.', true)
+    end
+    function self:mark(clear)
+        assert(self:active(), 'Join a session before placing a marker.')
+        local pawn = R.player().Pawn
+        assert(clear or R.valid(pawn), 'Your player is not ready.')
+        self.social:mark(not clear and pawn:K2_GetActorLocation() or nil, R.level())
+        self.social:add('', clear and 'Rally marker cleared.' or 'Rally marker placed for 25 seconds.', true)
+    end
+    function self:featuresTick()
+        if not self:active() then self.countdown:cancel(); return end
+        if not self:isHost() and self.metadata.remote then
+            local range = self.social.remoteRange
+            if self.selectedByHost and self.selectedByHost ~= range then
+                self.localReady = false
+                self.social:add('', 'The host changed the range. Ready up again.', true)
+            end
+            self.selectedByHost = range
+        end
+        if self:isHost() then
+            local range = self.ranges[self.rangeIndex]
+            local action, destination = self.countdown:step(self:allReady(), self.players, range and range.id)
+            if action == 'travel' then self:travel(destination)
+            elseif action == 'cancelled' then self.social:add('', 'Range countdown cancelled.', true) end
+        end
+    end
+    function self:copyId()
+        self.invites:initialize()
+        local storage = require('shared.storage')
+        local copy = assert(package.loadlib(storage.directory .. 'BallisticSteamInvites.dll', 'bt_copyid'), 'Update the native bridge.')
+        copy()
+        self.social:add('', storage.read('clipboard-status.txt'), true)
     end
     return self
 end

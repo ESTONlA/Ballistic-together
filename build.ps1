@@ -5,7 +5,11 @@ $game = (Resolve-Path -LiteralPath (Join-Path $project '..\..')).Path
 $source = Join-Path $project 'src'
 $installed = Join-Path $game 'Ballistic\Binaries\Win64\ue4ss\Mods\BallisticTogether'
 $scripts = Get-ChildItem -LiteralPath (Join-Path $source 'Scripts') -Recurse -File -Filter '*.lua'
-if ($scripts.Count -ne 13) { throw "Unexpected source layout: $($scripts.Count) Lua modules" }
+foreach ($entry in @('main.lua', 'app.lua', 'release.lua', 'config.lua')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $source "Scripts\$entry"))) { throw "Missing entry module: $entry" }
+}
+$version = [regex]::Match([IO.File]::ReadAllText((Join-Path $source 'Scripts\release.lua')), "version = '([^']+)'").Groups[1].Value
+if ($version -notmatch '^\d+\.\d+\.\d+(-[a-z0-9.-]+)?$') { throw 'Invalid release.lua version' }
 if (-not (Test-Path -LiteralPath (Join-Path $source 'Native\BallisticSteamInvites.dll'))) { throw 'Build native/build.ps1 first.' }
 [IO.File]::WriteAllText((Join-Path $source 'enabled.txt'), '')
 if ($Install) {
@@ -21,7 +25,7 @@ if ($Install) {
 }
 $dist = Join-Path $project 'dist'
 [IO.Directory]::CreateDirectory($dist) | Out-Null
-$archive = Join-Path $dist 'BallisticTogether-0.2.1-beta.zip'
+$archive = Join-Path $dist "BallisticTogether-$version.zip"
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $stream = [IO.File]::Open($archive, [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite)
@@ -31,7 +35,7 @@ try {
         $relative = $file.FullName.Substring($source.Length + 1).Replace('\', '/')
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, "Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/$relative") | Out-Null
     }
-    foreach ($name in @('README.md', 'LICENSE', 'CONTRIBUTING.md')) {
+    foreach ($name in @('README.md', 'PATCHNOTES.txt', 'CODEBASE.md', 'LICENSE', 'CONTRIBUTING.md')) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $project $name), $name) | Out-Null
     }
 } finally { $zip.Dispose(); $stream.Dispose() }

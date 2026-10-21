@@ -2,6 +2,7 @@ local R = require('shared.runtime')
 local Names = require('avatars.nameplates')
 local Motion = require('avatars.motion')
 local Weapons = require('avatars.weapons')
+local Buffer = require('avatars.buffer')
 local Avatars = {}
 
 function Avatars.create(config)
@@ -62,7 +63,7 @@ function Avatars.create(config)
         end)
         if not ok then destroy({parts = parts}); error(err) end
         local p, r = pawn:K2_GetActorLocation(), pawn:K2_GetActorRotation()
-        return {pawn = pawn, parts = parts, position = Motion.copy(p), yaw = r.Yaw, walking = false, handBone = handBone}
+        return {pawn = pawn, parts = parts, position = Motion.copy(p), yaw = r.Yaw, walking = false, handBone = handBone, buffer = Buffer.create(config)}
     end
     function self:sync(roster)
         local world = R.worldKey()
@@ -83,8 +84,14 @@ function Avatars.create(config)
                     self.peers[entry.id] = peer
                 end
                 local p, rotation = entry.pawn:K2_GetActorLocation(), entry.pawn:K2_GetActorRotation()
+                local stamp
+                local stamped, value = pcall(function() return entry.pawn.ReplicatedServerLastTransformUpdateTimeStamp end)
+                if stamped and type(value) == 'number' and value > 0 then stamp = value end
+                local moved, velocity = pcall(function() return entry.pawn:GetVelocity() end)
+                peer.buffer:push(p, rotation.Yaw, now, stamp, moved and velocity or nil)
+                local target, targetYaw = peer.buffer:sample(now)
                 local speed
-                peer.position, peer.yaw, speed = Motion.step(peer.position, peer.yaw, p, rotation.Yaw, dt,
+                peer.position, peer.yaw, speed = Motion.step(peer.position, peer.yaw, target, targetYaw, dt,
                     config.SmoothingSpeed or 14, config.TeleportSnapDistance or 500)
                 p = peer.position
                 if self.assets.animated then
@@ -109,8 +116,15 @@ function Avatars.create(config)
                     {Pitch = 0, Yaw = peer.yaw + (config.AvatarYawOffset or -90), Roll = 0}, false, {}, true)
                 local feetPosition = {X = p.X, Y = p.Y, Z = feet}
                 local grip = peer.handBone and peer.parts[1].SkeletalMeshComponent:GetSocketLocation(peer.handBone) or nil
-                Weapons.sync(peer, entry.gear or '', feetPosition, peer.yaw, grip)
-                Names.update(peer.parts[2], entry.name,
+                if not self.preferences or self.preferences.ShowWeapons then Weapons.sync(peer, entry.gear or '', feetPosition, peer.yaw, grip)
+                elseif peer.gear then Weapons.clear(peer) end
+                peer.parts[2]:SetActorHiddenInGame(self.preferences and not self.preferences.ShowNames or false)
+                local label = entry.name .. (entry.away and ' [Away]' or (entry.ready and ' [Ready]' or ''))
+                if cameraPosition and (not self.preferences or self.preferences.ShowDistances) then
+                    local dx, dy, dz = p.X-cameraPosition.X, p.Y-cameraPosition.Y, p.Z-cameraPosition.Z
+                    label = label .. string.format(' %.0fm', math.sqrt(dx*dx+dy*dy+dz*dz)/100)
+                end
+                Names.update(peer.parts[2], label,
                     {X = p.X, Y = p.Y, Z = feet + (config.AvatarHeight or 180) + (config.NameplateHeight or 24)}, cameraPosition)
             end
         end

@@ -1,0 +1,41 @@
+Ballistic Together 0.2.6-beta
+Fixed oversized lobby snapshots being sent through Steam's size-limited unreliable mode; state messages now use reliable delivery.
+Added send-queue backpressure, failed-send retries and paced idle heartbeats.
+Added acknowledged chat delivery; waiting messages stay queued instead of being silently replaced.
+Added acknowledged weapon revisions so unchanged gun data stops repeating once received.
+New or reconnecting peers request the complete current weapon state again.
+Added a three-second peer-data freshness check; delayed state cannot keep a range countdown ready.
+Added session-bound acknowledgements and sequence-wrap handling.
+Added adaptive movement buffering, capped short-gap prediction and immediate teleport resets.
+Added connection-data delay notices and auxiliary Steam queue/relay counters in exported reports.
+Added regression coverage for dropped/reordered snapshots, reconnects, acknowledgement loss, queue pressure, movement jitter and long update gaps.
+Both players need this version because the lobby message format changed.
+
+Ballistic Together 0.2.5-beta
+Added session chat with message history, unread counts and automatic scrolling to new messages.
+Added quick messages: Wait for me, Need ammo and Nice shot.
+Added shared rally markers at your position with distance labels and a 25-second lifetime.
+Added F7 to place a rally marker and Shift+F7 to clear it.
+Added a three-second range countdown and a host cancel button.
+Countdowns cancel when someone becomes unready, the player count changes or the destination changes.
+Guests can now see the host's selected range and countdown.
+Changing ranges clears ready status so everyone can confirm the new destination.
+Added Away status; readying up brings you back automatically.
+Added F9 to toggle ready status and Shift+F8 to open chat directly.
+Added an in-game session HUD with player status, ping and notifications.
+Added player join/leave messages to the session history.
+Added reconnect to the last host and remembered the host ID between launches.
+Added a Copy my Steam ID button.
+Added persistent settings for names, equipped guns, rally markers, the HUD and distance labels.
+Added incoming-chat mute and local chat-history clearing.
+Added ready/away indicators and distances to overhead player names.
+Added a confirmation step before removing a guest.
+Added a high-ping indicator to the lobby player list.
+Added connection-report export from Settings and Ctrl+F10.
+Added matching-version checks before starting a two-player range countdown.
+Added bounded lobby messages and duplicate/out-of-order message rejection.
+Separated the lobby, chat and settings into menu tabs using the game's native buttons and font.
+Split the code into application, session, player tracking, travel, social, protocol, settings, UI and visual modules.
+Made cosmetic Lua errors retry separately so they don't stop the entire multiplayer update loop.
+Kept the animation garbage-collection crash fix.
+Moved patch notes out of the README and into this file.
