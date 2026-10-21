@@ -23,7 +23,8 @@ function Metadata.create()
         if self.peerKey ~= peerKey then self.peerKey, self.accepted = peerKey, nil; self.quality:reset() end
         local now = R.gameplay():GetRealTimeSeconds(R.world())
         local range = session:isHost() and session.ranges[session.rangeIndex] or nil
-        local payload = Protocol.encode(session.social:fields(range and range.id, session.countdown:remaining(), gear or '', session.localReady))
+        local gameplay = session.gameplay and session.gameplay:outgoing() or ''
+        local payload = Protocol.encode(session.social:fields(range and range.id, session.countdown:remaining(), gear or '', session.localReady, gameplay))
         local command = string.format('%s %s %d\n%s', host, peer or '0', session.localReady and 1 or 0, payload)
         if command ~= self.lastCommand then Storage.write('lobby-out.txt', command); self.lastCommand = command end
         self.pump(); self.message = Storage.read('lobby-status.txt')
@@ -35,13 +36,14 @@ function Metadata.create()
             if packet then
                 local accepted = session.social:receive(packet, name or 'Friend', not session:isHost(), session.preferences.values.ChatMuted)
                 if accepted then
+                    if session.gameplay then session.gameplay:receive(packet.gameplay, packet.nonce, packet.ackNonce == session.social.nonce) end
                     if self.acceptedNonce ~= packet.nonce then self.acceptedNonce = packet.nonce; self.quality:reset() end
                     self.quality:observe(packet.sequence, now)
                     self.accepted = {id = id, ready = ready == '1' and packet.ackNonce == session.social.nonce,
                         gear = session.social.remoteGear, away = packet.away}
                 end
                 if self.quality:fresh(now) then self.remote = self.accepted end
-            else self.mismatch = true; self.message = 'Different mod versions. Install ' .. require('release').version .. ' on both PCs.' end
+            else self.mismatch = true; self.message = 'Different mod builds. Install the latest ' .. require('release').version .. ' on both PCs.' end
         else self.accepted = nil end
         if self.message == 'ready' and session.players > 1 and not peer then self.message = 'Waiting for the other player Steam identity.' end
         self.dataDelayed = session:active() and session.players > 1 and self.quality.received > 0 and not self.quality:fresh(now)

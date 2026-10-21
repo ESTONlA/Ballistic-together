@@ -1,4 +1,34 @@
-Ballistic Together 0.2.6-beta
+Ballistic Together 0.3.0-beta
+Added a shared three-second countdown before challenges begin.
+Added winner/draw results, a rematch button and clearer turn/remaining-shot indicators.
+Added readiness checks before starting or rematching a challenge.
+Rounds now cancel with scores preserved when a player disconnects, becomes unready or loses range synchronization.
+Added a resync control to rebuild target state and player-clock synchronization without leaving the range.
+Added compact moving-target updates and interpolation between received positions.
+Increased range-data updates to up to 10 per second while keeping gun-part collection separate.
+Bounded target sampling work per update and prioritized baseline delivery for new peers.
+Added spatial remote gunshot cues selected by cartridge/suppressor type and magazine release/insertion sounds.
+Added a saved Friend weapon audio toggle.
+Added peer clock synchronization, timestamp validation and a one-second finishing window for on-time hits arriving late.
+Score races now allow delayed earlier threshold hits to settle before announcing the winner.
+Standardized session points on captured target base values for consistent host/guest scoring.
+Added live shot/hit, audio and timing counters to connection reports.
+Made the Range tab scroll so its controls fit smaller windows.
+Prefer UE4SS's game-thread timer to avoid continuously queuing background update callbacks.
+Copy native output arrays before further reflected calls and defer incomplete target poses without stopping other target updates.
+The menu and connection reports identify this updated 0.3.0 release as build 2; both players must use it.
+Added shared muzzle flashes, short-lived tracers and impact effects from real firing and bullet-hit events.
+Added host-coordinated target identities, hit states, visibility and primary-mesh positions.
+Added target baseline transfer so procedural targets can be matched or created on the other PC.
+Added a shared session scoreboard with host and guest points, hits and shots.
+Added 60-second rounds, first to 1000 points and five-shot turns.
+Added a Range tab for scores, challenge controls and target synchronization progress.
+Added procedural gun aiming, recoil and magazine-release motion on remote weapon copies.
+Fixed wrapped Unreal component entries being skipped when collecting gun attachments.
+Added return-to-spawn controls for the host and guest, with guest requests handled by the host.
+Added a confirmed host restart-range action that reloads the range for both players.
+Added acknowledged range-event queues, duplicate-hit protection and old-range event rejection.
+Added range synchronization details to connection reports.
 Fixed oversized lobby snapshots being sent through Steam's size-limited unreliable mode; state messages now use reliable delivery.
 Added send-queue backpressure, failed-send retries and paced idle heartbeats.
 Added acknowledged chat delivery; waiting messages stay queued instead of being silently replaced.
@@ -9,33 +39,5 @@ Added session-bound acknowledgements and sequence-wrap handling.
 Added adaptive movement buffering, capped short-gap prediction and immediate teleport resets.
 Added connection-data delay notices and auxiliary Steam queue/relay counters in exported reports.
 Added regression coverage for dropped/reordered snapshots, reconnects, acknowledgement loss, queue pressure, movement jitter and long update gaps.
-Both players need this version because the lobby message format changed.
-
-Ballistic Together 0.2.5-beta
-Added session chat with message history, unread counts and automatic scrolling to new messages.
-Added quick messages: Wait for me, Need ammo and Nice shot.
-Added shared rally markers at your position with distance labels and a 25-second lifetime.
-Added F7 to place a rally marker and Shift+F7 to clear it.
-Added a three-second range countdown and a host cancel button.
-Countdowns cancel when someone becomes unready, the player count changes or the destination changes.
-Guests can now see the host's selected range and countdown.
-Changing ranges clears ready status so everyone can confirm the new destination.
-Added Away status; readying up brings you back automatically.
-Added F9 to toggle ready status and Shift+F8 to open chat directly.
-Added an in-game session HUD with player status, ping and notifications.
-Added player join/leave messages to the session history.
-Added reconnect to the last host and remembered the host ID between launches.
-Added a Copy my Steam ID button.
-Added persistent settings for names, equipped guns, rally markers, the HUD and distance labels.
-Added incoming-chat mute and local chat-history clearing.
-Added ready/away indicators and distances to overhead player names.
-Added a confirmation step before removing a guest.
-Added a high-ping indicator to the lobby player list.
-Added connection-report export from Settings and Ctrl+F10.
-Added matching-version checks before starting a two-player range countdown.
-Added bounded lobby messages and duplicate/out-of-order message rejection.
-Separated the lobby, chat and settings into menu tabs using the game's native buttons and font.
-Split the code into application, session, player tracking, travel, social, protocol, settings, UI and visual modules.
-Made cosmetic Lua errors retry separately so they don't stop the entire multiplayer update loop.
-Kept the animation garbage-collection crash fix.
-Moved patch notes out of the README and into this file.
+Session scores are separate from single-player money, unlocks and saves.
+Both players must update to this version.

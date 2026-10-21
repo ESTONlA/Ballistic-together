@@ -1,8 +1,10 @@
 local R = require('shared.runtime')
 local App = {}
 function App.create(config)
-    local self = {session = require('lobby.session').create(config), failures = {}, roster = {}, queued = false, world = '', lastRoster = -1, lastTick = -1}
+    local self = {session = require('lobby.session').create(config), failures = {}, roster = {}, queued = false, world = '', lastRoster = -1, lastRange = -1, lastTick = -1}
     local session = self.session
+    self.gameplay = require('gameplay.engine').create(session)
+    session.gameplay = self.gameplay
     self.avatars = require('avatars.proxies').create(config)
     self.avatars.preferences = session.preferences.values
     self.markers = require('avatars.markers').create(session)
@@ -15,6 +17,7 @@ function App.create(config)
     end
     self.ui = require('ui.panel').create(config, session, function(fn) return self:action(fn) end)
     session.beforeTravel = function()
+        self.gameplay:clear()
         self.avatars:clear(); self.markers:clear(); self.roster = {}
         if self.ui.open then self.ui:close() end
     end
@@ -34,7 +37,7 @@ function App.create(config)
     function self:step()
         if not R.valid(R.world()) then return end
         local world = R.worldKey()
-        if world ~= self.world then self.world, self.roster, self.lastRoster, self.failures = world, {}, -1, {} end
+        if world ~= self.world then self.world, self.roster, self.lastRoster, self.lastRange, self.failures = world, {}, -1, -1, {} end
         local now = os.time()
         if now ~= self.lastTick then
             self.lastTick = now
@@ -43,11 +46,18 @@ function App.create(config)
         local clock = R.gameplay():GetRealTimeSeconds(R.world())
         if clock < self.lastRoster or clock - self.lastRoster >= 0.25 then
             self.lastRoster = clock
-            self:guard('Lobby data', function() session:updatePlayers(); session:featuresTick(); self.roster = session:roster() end)
+            self:guard('Player list', function() session:updatePlayers(true); session:featuresTick(); self.roster = session:roster() end)
             self:guard('Lobby menu', function() self.ui:update(); self.hud:update() end)
             self:guard('Rally markers', function() self.markers:update() end)
         end
+        if clock < self.lastRange or clock - self.lastRange >= 0.1 then
+            self.lastRange = clock
+            self:guard('Shared range', function() self.gameplay:tick() end)
+            self:guard('Lobby data', function() session.metadata:tick(session, session.playerList, session.currentGear or '') end)
+        end
+        self:guard('Shot effects', function() self.gameplay:updateEffects() end)
         self:guard('Player visuals', function()
+            for _, row in ipairs(self.roster) do row.handling = self.gameplay.remotePose end
             if session:active() then self.avatars:sync(self.roster) else self.avatars:clear(); self.roster = {} end
         end)
     end
@@ -61,14 +71,24 @@ function App.create(config)
     end
     function self:start()
         self:action(function() session:installHooks() end)
-        LoopAsync(config.AvatarRefreshMs or 16, function()
-            if self.queued then return end
+        local function update()
+            if self.queued then return false end
             self.queued = true
-            ExecuteInGameThread(function()
-                self:guard('Update loop', function() self:step() end)
-                self.queued = false
+            self:guard('Update loop', function() self:step() end)
+            self.queued = false
+            return false
+        end
+        if type(LoopInGameThreadWithDelay)=='function'then
+            self.loop=LoopInGameThreadWithDelay(config.AvatarRefreshMs or 16,update)
+            R.log('Using the game-thread update timer.')
+        else
+            LoopAsync(config.AvatarRefreshMs or 16,function()
+                if self.queued then return false end
+                self.queued=true
+                ExecuteInGameThread(function()self.queued=false;update()end)
+                return false
             end)
-        end)
+        end
         local function bind(key, modifiers, fn)
             local callback = function() ExecuteInGameThread(function() self:action(fn) end) end
             if modifiers then RegisterKeyBind(key, modifiers, callback) else RegisterKeyBind(key, callback) end
@@ -80,7 +100,7 @@ function App.create(config)
         bind(Key.F7, {ModifierKey.SHIFT}, function() session:mark(true) end)
         bind(Key.LEFT_MOUSE_BUTTON, nil, function() self.ui:click() end)
         bind(Key.F10, {ModifierKey.CONTROL}, function() self:diagnostics() end)
-        R.log('v' .. require('release').version .. ' loaded. F8 lobby / Shift+F8 chat / F9 ready / F7 rally marker.')
+        R.log('v' .. require('release').version .. ' build ' .. (require('release').build or 1) .. ' loaded. F8 lobby / Shift+F8 chat / F9 ready / F7 rally marker.')
     end
     return self
 end

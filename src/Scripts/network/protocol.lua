@@ -1,6 +1,6 @@
 local Protocol = {}
 local magic = require('release').protocol .. '\n'
-local limits = {64, 8, 64, 2, 32, 160, 2, 1800, 20000, 8, 8, 8, 64, 1}
+local limits = {64, 8, 64, 2, 32, 160, 2, 1800, 13000, 8, 8, 8, 64, 1, 7000}
 local defaults = {[10] = '0', [11] = '0', [12] = '0', [14] = '1'}
 function Protocol.encode(fields)
     local out = {magic}
@@ -33,7 +33,7 @@ function Protocol.decode(payload)
     if tonumber(fields[2]) >= 10000000 then return nil end
     return {nonce = fields[1], sequence = tonumber(fields[2]), range = fields[3], countdown = tonumber(fields[4]) or 0,
         markerId = tonumber(fields[5]) or 0, marker = fields[6], away = fields[7] == '1', chat = fields[8], gear = fields[9],
-        gearRevision = tonumber(fields[10]), gearAck = tonumber(fields[11]), chatAck = tonumber(fields[12]), ackNonce = fields[13], gearIncluded = fields[14] == '1'}
+        gearRevision = tonumber(fields[10]), gearAck = tonumber(fields[11]), chatAck = tonumber(fields[12]), ackNonce = fields[13], gearIncluded = fields[14] == '1', gameplay = fields[15]}
 end
 function Protocol.newer(sequence, previous)
     local distance = (sequence - previous) % 10000000

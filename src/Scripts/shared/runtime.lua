@@ -6,6 +6,11 @@ function R.valid(object)
     return ok and result
 end
 function R.name(object) return R.valid(object) and object:GetFullName() or '' end
+function R.object(value)
+    local ok, object = pcall(function() return value:get() end)
+    if ok and R.valid(object) then return object end
+    return R.valid(value) and value or nil
+end
 function R.world()
     local viewport = H.GetGameViewportClient()
     return R.valid(viewport) and viewport:GetWorld() or CreateInvalidObject()

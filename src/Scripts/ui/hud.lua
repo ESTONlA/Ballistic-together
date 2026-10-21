@@ -14,7 +14,7 @@ function Hud.create(session)
         end
         if not R.valid(self.widget) then
             local w = Widgets.create(); self.widget = w.root
-            local column = w:panel(430, 210, 'hud')
+            local column = w:panel(430, 260, 'hud')
             self.title = w:text(column, '', 18)
             self.body = w:text(column, '', 15)
             self.alert = w:text(column, '', 15)
@@ -31,6 +31,7 @@ function Hud.create(session)
         if seconds > 0 then lines[#lines + 1] = 'Entering range in ' .. seconds .. '...' end
         if session.metadata.mismatch then lines[#lines + 1] = 'Update the mod on both PCs.' end
         if session.metadata.dataDelayed then lines[#lines + 1] = 'Connection updates delayed.' end
+        if session.gameplay and session.gameplay:available() then lines[#lines + 1] = session.gameplay:summary() end
         self.body:SetText(FText(table.concat(lines, '\n')))
         self.alert:SetText(FText(os.time() < self.untilTime and self.notice or ''))
     end

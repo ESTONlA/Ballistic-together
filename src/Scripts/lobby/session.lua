@@ -101,7 +101,7 @@ function Session.create(config)
             self:set('failed', 'Steam connection was not established. Check the log and launch through Steam.')
         end
     end
-    function self:updatePlayers() require('lobby.players').update(self) end
+    function self:updatePlayers(skipMetadata) require('lobby.players').update(self, skipMetadata) end
     function self:roster()
         if not self:active() then return {} end
         local peers = {}

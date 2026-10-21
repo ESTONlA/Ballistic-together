@@ -2,7 +2,7 @@ local R = require('shared.runtime')
 local Metadata = require('network.metadata')
 local Weapons = require('avatars.weapons')
 local Players = {}
-function Players.update(self)
+function Players.update(self, skipMetadata)
     if not self:active() then
         self.playerList = {}
         self.metadata:tick(self, {}, '')
@@ -13,8 +13,11 @@ function Players.update(self)
     if states then
         assert(#states <= 64, 'Unexpected lobby player count')
         local pc = R.player()
+        local objects = {}
         for i = 1, #states do
-            local state = states[i]
+            local state = R.object(states[i]); if state then objects[#objects + 1] = state end
+        end
+        for _, state in ipairs(objects) do
             if R.valid(state) then
                 local pawn = state:GetPawn()
                 local isLocal = R.valid(pc) and R.name(pc.PlayerState) == R.name(state)
@@ -29,7 +32,8 @@ function Players.update(self)
     local pc = R.player()
     local pawn = R.valid(pc) and pc.Pawn or nil
     local ok, gear = pcall(Weapons.capture, Weapons.equipped(pawn))
-    self.metadata:tick(self, rows, ok and gear or '')
+    self.currentGear = ok and gear or ''
+    if not skipMetadata then self.metadata:tick(self, rows, self.currentGear) end
     for _, row in ipairs(rows) do
         local remote = self.metadata.remote
         row.ready = row.isLocal and self.localReady or (remote and remote.id == row.steamId and remote.ready == true) or false

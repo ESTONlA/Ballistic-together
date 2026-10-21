@@ -36,9 +36,9 @@ function Social.create(clock)
         self.markerId = self.markerId + 1
         self.marker = position and {X = position.X, Y = position.Y, Z = position.Z, level = level, untilTime = clock() + 25} or nil
     end
-    function self:fields(range, countdown, gear, ready)
+    function self:fields(range, countdown, gear, ready, gameplay)
         gear = gear or ''
-        if #gear > 20000 then gear = '' end
+        if #gear > 13000 then gear = '' end
         if self.ownGear ~= gear then
             self.ownGear, self.ownGearRevision = gear, self.ownGearRevision + 1
         end
@@ -48,7 +48,7 @@ function Social.create(clock)
         end
         local fields = {self.nonce, 0, range or '', countdown or 0, self.markerId, body, self.away and '1' or '0',
             table.concat(self.outgoing, '\n'), self.acknowledgedGear < self.ownGearRevision and gear or '',
-            self.ownGearRevision, self.remoteGearRevision, self.seen, self.remoteNonce or '', self.acknowledgedGear < self.ownGearRevision and '1' or '0'}
+            self.ownGearRevision, self.remoteGearRevision, self.seen, self.remoteNonce or '', self.acknowledgedGear < self.ownGearRevision and '1' or '0', gameplay or ''}
         local semantic = Protocol.encode(fields) .. ':' .. tostring(ready == true)
         if semantic ~= self.lastSemantic or not self.lastSnapshot or clock() < self.lastSnapshot or clock() - self.lastSnapshot >= 1 then
             self.sequence = (self.sequence + 1) % 10000000

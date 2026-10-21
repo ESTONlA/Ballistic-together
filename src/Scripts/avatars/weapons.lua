@@ -12,7 +12,7 @@ function Weapons.capture(weapon)
     if not R.valid(weapon) then return '' end
     local actors, lines = {weapon}, {}
     local children = {}; weapon:GetAllChildActors(children, true)
-    for i = 1, math.min(#children, 64) do actors[#actors + 1] = children[i] end
+    for i = 1, math.min(#children, 64) do local child = R.object(children[i]); if child then actors[#actors + 1] = child end end
     local root = weapon:GetTransform()
     local seen = {}
     for _, actor in ipairs(actors) do
@@ -22,7 +22,7 @@ function Weapons.capture(weapon)
             local ok, component = pcall(function() return actor[field] end)
             if ok and R.valid(component) then candidates[#candidates + 1] = component end
         end
-        for i = 1, math.min(#components, 64) do candidates[#candidates + 1] = components[i] end
+        for i = 1, math.min(#components, 64) do local component = R.object(components[i]); if component then candidates[#candidates + 1] = component end end
         for _, component in ipairs(candidates) do
             local ok, mesh = pcall(function() return component.StaticMesh end)
             local asset = ok and path(mesh) or nil
@@ -36,7 +36,9 @@ function Weapons.capture(weapon)
             end
         end
     end
-    return table.concat(lines, '\n')
+    local captured = table.concat(lines, '\n')
+    if #captured > 13000 then return '' end
+    return captured
 end
 function Weapons.decode(payload)
     if #payload > 23000 then return nil end
@@ -61,7 +63,7 @@ function Weapons.clear(peer)
     for _, part in ipairs(peer.weaponParts or {}) do if R.valid(part.actor) then part.actor:SetActorHiddenInGame(true); part.actor:K2_DestroyActor() end end
     peer.weaponParts, peer.gear = {}, nil
 end
-function Weapons.sync(peer, payload, position, yaw, grip)
+function Weapons.sync(peer, payload, position, yaw, grip, handling)
     payload = payload or ''
     if peer.gear ~= payload then
         Weapons.clear(peer)
@@ -85,12 +87,20 @@ function Weapons.sync(peer, payload, position, yaw, grip)
         end
     end
     local angle = math.rad(yaw)
+    handling = handling or {}
+    local time = R.gameplay():GetRealTimeSeconds(R.world())
+    local recoil = handling.firedAt and math.max(0, 1 - (time - handling.firedAt) / 0.18) or 0
+    local reload = handling.reloadUntil and math.max(0, math.min(1, (handling.reloadUntil - time) / 1.5)) or 0
+    local tilt = math.rad(handling.pitch or 0)
     for _, part in ipairs(peer.weaponParts or {}) do
-        local x, y = part.p.X + (grip and 8 or 28), part.p.Y + (grip and 0 or 10)
+        local x, y = part.p.X + (grip and 8 or 28) - recoil * 4, part.p.Y + (grip and 0 or 10)
+        local z = part.p.Z + (handling.aim and 7 or 0)
+        if reload > 0 and part.path:lower():find('mag') then z = z - math.sin(reload * math.pi) * 18 end
+        x, z = x * math.cos(tilt) - z * math.sin(tilt), x * math.sin(tilt) + z * math.cos(tilt)
         local origin = grip or position
         local p = {X = origin.X + x * math.cos(angle) - y * math.sin(angle),
-            Y = origin.Y + x * math.sin(angle) + y * math.cos(angle), Z = origin.Z + (grip and 0 or 124) + part.p.Z}
-        local r = mathlib():ComposeRotators(part.r, {Pitch = 0, Yaw = yaw, Roll = 0})
+            Y = origin.Y + x * math.sin(angle) + y * math.cos(angle), Z = origin.Z + (grip and 0 or 124) + z}
+        local r = mathlib():ComposeRotators(part.r, {Pitch = (handling.pitch or 0) + recoil * 4, Yaw = yaw, Roll = reload > 0 and math.sin(reload * math.pi) * 18 or 0})
         part.actor:K2_SetActorLocationAndRotation(p, r, false, {}, true)
     end
 end

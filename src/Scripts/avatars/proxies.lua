@@ -116,7 +116,7 @@ function Avatars.create(config)
                     {Pitch = 0, Yaw = peer.yaw + (config.AvatarYawOffset or -90), Roll = 0}, false, {}, true)
                 local feetPosition = {X = p.X, Y = p.Y, Z = feet}
                 local grip = peer.handBone and peer.parts[1].SkeletalMeshComponent:GetSocketLocation(peer.handBone) or nil
-                if not self.preferences or self.preferences.ShowWeapons then Weapons.sync(peer, entry.gear or '', feetPosition, peer.yaw, grip)
+                if not self.preferences or self.preferences.ShowWeapons then Weapons.sync(peer, entry.gear or '', feetPosition, peer.yaw, grip, entry.handling)
                 elseif peer.gear then Weapons.clear(peer) end
                 peer.parts[2]:SetActorHiddenInGame(self.preferences and not self.preferences.ShowNames or false)
                 local label = entry.name .. (entry.away and ' [Away]' or (entry.ready and ' [Ready]' or ''))

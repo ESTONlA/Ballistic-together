@@ -1,7 +1,7 @@
 local Storage = require('shared.storage')
 local Steam = require('network.steam')
 local Preferences = {}
-local defaults = {ShowNames = true, ShowWeapons = true, ShowMarkers = true, ShowHud = true, ShowDistances = true, ChatMuted = false}
+local defaults = {ShowNames = true, ShowWeapons = true, ShowMarkers = true, ShowHud = true, ShowDistances = true, ChatMuted = false, RemoteAudio = true}
 function Preferences.create(config)
     local self = {values = {}, lastHost = ''}
     for key, value in pairs(defaults) do

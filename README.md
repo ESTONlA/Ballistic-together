@@ -2,7 +2,7 @@
 
 Play **Ballistic.exe Demo** with a friend over Steam.
 
-**0.2.6-beta · 2 players · By RealEstonia**
+**0.3.0-beta · 2 players · By RealEstonia**
 
 Host a bunker session, send a Steam invite and head to the range together. See your friend's character, name and equipped gun, with walking animations and smoother movement.
 
@@ -18,12 +18,16 @@ Host a bunker session, send a Steam invite and head to the range together. See y
 - Host controls to choose a range, travel together, return to the bunker or remove a guest.
 - Animated player models with overhead names.
 - Visible equipped guns and attachments, up to 32 static-mesh parts.
+- Shared shot effects, target state and a host-owned session scoreboard.
+- Timed rounds, a race to 1000 points and five-shot turns, with a shared start countdown, results and rematches.
+- A Range tab with round controls, return-to-spawn buttons, resync and confirmed range restart.
+- Smoother moving targets and spatial shot/magazine audio, with an audio toggle in Settings.
 
-Gun models are visual copies. Firing, ammo, damage, targets, scores and saves aren't synchronized.
+See your friend's muzzle flashes, tracers and impact effects. The host coordinates target hit states, rigid-body positions and session scores. Gun handling uses procedural aiming, recoil and magazine motion; the character keeps its existing idle and walking animations. Your ammo, money, unlocks and save remain your own.
 
 ## Installation
 
-Install the same version on **both PCs** and close the game before updating files. You'll each need your own Steam account, the same game version and a working UE4SS installation.
+Install the same version on **both PCs** and close the game before updating files. For this update, check that the F8 menu says **build 2** on both PCs. You'll each need your own Steam account, the same game version and a working UE4SS installation.
 
 ### 1. Find your game folder
 
@@ -58,7 +62,7 @@ Put the loader beside **Ballistic-Win64-Shipping.exe**. Keep your existing mods 
 
 ### 3. Install the mod
 
-Get **BallisticTogether-0.2.6-beta.zip** from [Releases](https://github.com/ESTONlA/Ballistic-together/releases).
+Get **BallisticTogether-0.3.0-beta.zip** from [Releases](https://github.com/ESTONlA/Ballistic-together/releases).
 
 1. Extract it into your **main game folder**, where `Ballistic.exe` is.
 2. Merge the included `Ballistic` folder and replace old mod files if asked.
@@ -73,6 +77,7 @@ Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/
     ├── main.lua
     ├── config.lua
     ├── avatars/
+    ├── gameplay/
     ├── lobby/
     ├── network/
     ├── shared/
@@ -116,6 +121,22 @@ You can visit **Azure Swimming Pool** and **Training sequence** when the host ha
 
 The host can click **Remove guest** to disconnect the other player. To leave, choose **F8 → Leave session**. Closing the menu keeps you connected.
 
+## Shooting together
+
+Open **F8 → Range** after arriving. Wait for the target counter to finish syncing, then both press **Ready for round** or **F9**. The host can choose **60 seconds**, **First to 1000 points**, or **Take turns / five shots each**. Everyone sees a three-second countdown before scoring starts.
+
+The HUD shows the time left, whose turn it is and how many shots remain. A timed round lasts 60 seconds; the score race ends at 1000 points. Turn mode keeps alternating until the host clicks **Finish round**. Shots fired during the countdown or out of turn don't score. Results show who won or whether it was a draw. Use **Rematch** to play the same mode again, or **Reset scores** to return to practice.
+
+Session points use each target's captured base value, so host and guest follow the same scoring rule. They are separate from single-player money, bonuses and unlocks. A one-second finishing window lets delayed hit reports count when the hit happened before the timer ended. Very late reports are rejected; this doesn't rewind target collisions.
+
+If a player disconnects, stops sending range updates, loses clock synchronization or becomes unready, the round cancels and keeps its scores. Reconnect if needed, wait for synchronization, ready up and start a rematch. **Resync players and targets** rebuilds the shared target state and timing; a guest's button requests this from the host.
+
+**Return me to spawn** takes you back to your arrival point. A guest's button sends a request to the host. The host can also return the guest to spawn or click **Restart range** twice to reload the range for everyone. Restarting creates a fresh scoreboard and fresh targets. Rematches and score resets keep the current targets.
+
+Hear your friend's shots and magazine handling at their position. Shot sounds use the game's built-in caliber and suppressor cues. Turn **Friend weapon audio** off in Settings to mute them.
+
+Remote shots replay effects and target state; they don't grant duplicate save rewards. Target sync covers the actor and its primary mesh, rather than every individual ragdoll bone or broken fragment.
+
 ## Chat, markers and settings
 
 Open **F8 → Chat**, or press **Shift + F8**, to message your friend. Use the quick-message buttons when you don't feel like typing. Chat stays with the current session; **Clear local chat** only clears your view.
@@ -124,7 +145,7 @@ Press **F7** to mark where you're standing. Your friend sees a rally point and i
 
 Choose **Away** in the lobby when you're taking a break. It clears your ready status; clicking **Ready** brings you back.
 
-In **Settings**, toggle player names, friend guns, rally markers, the session HUD, distance labels or incoming-chat mute. Your choices are saved between launches. You can also copy your Steam ID or save a connection report there.
+In **Settings**, toggle player names, friend guns, rally markers, the session HUD, distance labels, friend weapon audio or incoming-chat mute. Your choices are saved between launches. You can also copy your Steam ID or save a connection report there.
 
 To rejoin someone, use **Reconnect to last host** on the connection screen. The host needs to have a session open.
 
@@ -213,7 +234,7 @@ Restart the game after installing.
 
 | Folder | Contents |
 | --- | --- |
-| `src/Scripts/` | Lua code for the menu, sessions, Steam transport and player visuals |
+| `src/Scripts/` | Lua code for sessions, shared range gameplay, Steam transport and player visuals |
 | `native/` | C++ source for Steam invites and lobby data |
 | `src/Native/` | Generated DLL |
 | `dev/` | Local diagnostics and captures, ignored by Git |
