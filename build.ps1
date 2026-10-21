@@ -27,7 +27,7 @@ try {
         $relative = $file.FullName.Substring($source.Length + 1).Replace('\', '/')
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, "Ballistic/Binaries/Win64/ue4ss/Mods/BallisticTogether/$relative") | Out-Null
     }
-    foreach ($name in @('README.md', 'PATCHNOTES.txt')) {
+    foreach ($name in @('README.md', 'PATCHNOTES.txt', 'LICENSE', 'CONTRIBUTING.md')) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, (Join-Path $project $name), $name) | Out-Null
     }
 } finally { $zip.Dispose(); $stream.Dispose() }

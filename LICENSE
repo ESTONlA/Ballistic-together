@@ -1,0 +1,91 @@
+Ballistic Together Source-Available License
+Version 1.0 — 21 October 2026
+
+Copyright (c) 2026 RealEstonia and the respective contributors.
+All rights reserved except as expressly granted below.
+
+1. Scope
+
+"Software" means the Ballistic Together source code, original documentation
+and compiled mod components covered by this license. "Official Project"
+means https://github.com/ESTONlA/Ballistic-together and releases or distribution
+pages operated or expressly authorized by RealEstonia for Ballistic Together.
+"You" means a person or organization exercising the permissions below.
+
+Third-party software, game assets, trademarks and other material not owned
+by the project's copyright holders are not licensed by this document. Their
+respective owners' terms continue to apply.
+
+2. Personal use and development
+
+You may download, inspect, study, install, run and make private copies of the
+Software. You may modify and compile it for your own use, testing, debugging
+and preparation of contributions to the Official Project.
+
+3. Forks and contributions
+
+You may create and maintain a source-code fork within GitHub's fork network,
+publish development changes in that fork, and submit pull requests, patches,
+issues and code-review suggestions to the Official Project. These permissions
+allow public source changes needed for collaboration; they do not authorize
+a separately distributed mod or product.
+
+Keep this license and existing copyright notices in copies and forks. Identify
+your changes and do not present your fork as an official release. You may add
+accurate contributor credits without removing existing attribution.
+
+Except with RealEstonia's prior written permission, a fork must not publish
+downloadable mod builds, release packages, installers, binary CI artifacts or
+other ready-to-install copies of the Software.
+
+4. No redistribution or reuploads
+
+Except for the GitHub source-fork and contribution permissions in section 3,
+or rights that cannot lawfully be restricted, You may not publish, upload,
+mirror, distribute, sell, sublicense or otherwise supply copies of the
+Software or modified versions to others without RealEstonia's prior written
+permission. This includes source mirrors outside the permitted fork network,
+compiled builds, modpacks, repackaged archives, ports and separately branded
+versions, whether provided free of charge or for payment.
+
+Linking to the Official Project or its authorized downloads is permitted.
+Attribution alone does not grant permission to redistribute the Software.
+
+5. Contribution terms
+
+By intentionally submitting a contribution for inclusion in the Official
+Project, You confirm that You have the right to contribute that material.
+You retain copyright in your contribution and grant RealEstonia a worldwide,
+non-exclusive, royalty-free license to use, reproduce, modify, compile,
+publicly display and distribute it as part of the Official Project under
+this license, including through authorized project download pages.
+
+You also license the contribution under this license for other recipients.
+These terms do not transfer copyright or authorize unrelated use of your
+contribution. Contributions do not grant contributors permission to publish
+separate releases of the Software. Material clearly marked as not intended
+for inclusion is not a submitted contribution under this section.
+
+6. Official distribution and additional permission
+
+RealEstonia may publish official copies, including accepted contributions,
+and may give specific written redistribution permission. Such permission
+applies only to its stated scope and does not grant rights in third-party
+material. These restrictions do not limit a copyright holder's use of their
+own independently owned material.
+
+7. Reserved and platform rights
+
+This is a custom source-available license, not an open-source license.
+Permissions not expressly granted are reserved. Nothing here restricts
+rights granted independently under applicable law or GitHub's Terms of
+Service, including GitHub's rights to host content and users' rights to
+view and fork public repositories through the service.
+
+8. No warranty or liability
+
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+THE COPYRIGHT HOLDERS AND CONTRIBUTORS SHALL NOT BE LIABLE FOR CLAIMS,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.

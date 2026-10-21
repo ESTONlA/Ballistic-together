@@ -238,6 +238,14 @@ The Lua code selects the game's compiled Steam Sockets driver in memory. The nat
 
 </details>
 
+## Contributing and license
+
+Want to help? Fork the repository, make your changes and open a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and what to include in a bug report.
+
+Ballistic Together uses a custom [source-available license](LICENSE). Personal use, private modifications, GitHub source forks and contributions are permitted. Separate mod uploads, mirrors, binary releases, modpacks and rebranded distributions require prior written permission from **RealEstonia**. Share a link to the official project instead of reuploading it.
+
+GitHub source forks are an explicit exception to the redistribution restriction; public repositories also carry platform rights under [GitHub's licensing guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository). This is not an open-source license.
+
 ---
 
 Made by **RealEstonia**. Built with [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS) and the game's existing assets. Unofficial community mod, not affiliated with the game's developers or Valve.
