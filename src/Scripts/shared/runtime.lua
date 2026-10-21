@@ -14,6 +14,11 @@ function R.player()
     local world = R.world()
     return R.valid(world) and R.gameplay():GetPlayerController(world, 0) or CreateInvalidObject()
 end
+function R.worldKey()
+    local world = R.world()
+    local ok, address = pcall(function() return world:GetAddress() end)
+    return ok and tostring(address) or R.name(world)
+end
 function R.engine() return H.GetEngine() end
 function R.gameplay() return StaticFindObject('/Script/Engine.Default__GameplayStatics') end
 function R.widgets() return StaticFindObject('/Script/UMG.Default__WidgetBlueprintLibrary') end

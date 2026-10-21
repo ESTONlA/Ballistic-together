@@ -1,10 +1,15 @@
 local R = require('shared.runtime')
 local Steam = {}
 Steam.Driver = '/Script/SteamSockets.SteamSocketsNetDriver'
+function Steam.validId(id)
+    if type(id) ~= 'string' or #id ~= 17 or not id:match('^%d+$') then return false end
+    local value = tonumber(id)
+    return value and value > 76561197960265728 and value <= 76561202255233023 or false
+end
 
 function Steam.address(id, port)
     id = tostring(id or ''):match('^%s*(.-)%s*$')
-    assert(#id == 17 and id:match('^7656119%d+$'), 'Enter the host SteamID64: 17 digits starting with 7656119.')
+    assert(Steam.validId(id), 'Enter the host public-account SteamID64 (17 digits).')
     port = tonumber(port)
     assert(port and port % 1 == 0 and port >= 1 and port <= 65535, 'Invalid Steam port')
     return 'steam.' .. id .. ':' .. tostring(port)

@@ -5,6 +5,8 @@
 #include <cstring>
 #include <string>
 #include <mutex>
+#include <map>
+#include <cstdlib>
 
 namespace {
 HMODULE module;
@@ -27,18 +29,22 @@ OverlayEnabled overlayEnabled;
 
 std::wstring path(const wchar_t* name) { return root + name; }
 void write(const wchar_t* name, const std::string& value) {
+    static std::map<std::wstring, std::string> previous;
+    const auto found = previous.find(name);
+    if (found != previous.end() && found->second == value) return;
     const auto temp = path(name) + L".tmp";
     FILE* f = nullptr;
     if (_wfopen_s(&f, temp.c_str(), L"wb") != 0) return;
     fwrite(value.data(), 1, value.size(), f);
     fclose(f);
-    MoveFileExW(temp.c_str(), path(name).c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+    if (MoveFileExW(temp.c_str(), path(name).c_str(), MOVEFILE_REPLACE_EXISTING)) previous[name] = value;
 }
 void status(const char* value) { write(L"status.txt", value); }
 bool address(const char* value) {
-    if (!value || strnlen_s(value, 256) != 28 || strncmp(value, "steam.7656119", 13) != 0) return false;
+    if (!value || strnlen_s(value, 256) != 28 || strncmp(value, "steam.", 6) != 0) return false;
     for (int i = 6; i < 23; ++i) if (value[i] < '0' || value[i] > '9') return false;
-    return strcmp(value + 23, ":7777") == 0;
+    const auto id = std::strtoull(value + 6, nullptr, 10);
+    return id > 76561197960265728ULL && id <= 76561202255233023ULL && strcmp(value + 23, ":7777") == 0;
 }
 struct JoinRequest { uint64_t friendId; char connect[256]; };
 static_assert(sizeof(JoinRequest) == 264);
@@ -84,6 +90,7 @@ bool initialize() {
     }
     registerCallback(&callback, 337);
     registered = true;
+    write(L"identity.txt", std::to_string(getId(userApi())));
     status("ready");
     return true;
 }
@@ -97,6 +104,7 @@ bool publish() {
     status("ready");
     return true;
 }
+#include "lobby_channel.inc"
 }
 
 extern "C" __declspec(dllexport) int bt_initialize(void*) {
@@ -111,6 +119,9 @@ extern "C" __declspec(dllexport) int bt_initialize(void*) {
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
             reinterpret_cast<LPCWSTR>(&bt_initialize), &pinned);
         DeleteFileW(path(L"accepted.txt").c_str());
+        DeleteFileW(path(L"identity.txt").c_str());
+        DeleteFileW(path(L"lobby-in.txt").c_str());
+        DeleteFileW(path(L"lobby-out.txt").c_str());
     }
     initialize();
     return 0;
@@ -136,6 +147,11 @@ extern "C" __declspec(dllexport) int bt_clear(void*) {
     }
     return 0;
 }
+extern "C" __declspec(dllexport) int bt_lobby(void*) {
+    std::lock_guard<std::mutex> lock(gate);
+    LobbyChannel::pump();
+    return 0;
+}
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) { module = instance; DisableThreadLibraryCalls(instance); }
     return TRUE;
@@ -143,7 +159,8 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
 
 #ifdef BT_SELF_TEST
 int main() {
-    if (!address("steam.76561198000000000:7777") || address("steam.76561198000000000:7777?listen") ||
+    if (!address("steam.76561198000000000:7777") || !address("steam.76561200000000000:7777") ||
+        address("steam.76561197960265728:7777") || address("steam.76561202255233024:7777") || address("steam.76561198000000000:7777?listen") ||
         address("127.0.0.1:7777") || address("steam.76561198000000000:7778")) return 1;
     wchar_t cwd[32768]; GetCurrentDirectoryW(32768, cwd); root = std::wstring(cwd) + L"\\";
     JoinRequest request{76561198000000000ULL, "steam.76561198000000000:7777"};
@@ -153,6 +170,25 @@ int main() {
     char result[128]{}; fread(result, 1, sizeof(result) - 1, f); fclose(f);
     if (!strstr(result, "\nsteam.76561198000000000:7777")) return 3;
     DeleteFileW(path(L"accepted.txt").c_str());
+    LobbyChannel::host = 76561198000000000ULL;
+    LobbyChannel::peer = 76561198000000001ULL;
+    LobbyChannel::epoch = 42;
+    const std::string packet = "BT020 76561198000000000 42 1\ngear";
+    if (!LobbyChannel::ingest(LobbyChannel::peer, packet, LobbyChannel::host, 100)) return 4;
+    if (LobbyChannel::ingest(76561198000000002ULL, packet, LobbyChannel::host, 100)) return 5;
+    if (LobbyChannel::ingest(LobbyChannel::peer, "BT020 76561198000000000 41 1\ngear", LobbyChannel::host, 100)) return 6;
+    if (LobbyChannel::ingest(LobbyChannel::peer, "BT020 76561198000000000 42 7\ngear", LobbyChannel::host, 100)) return 7;
+    puts("PASS lobby metadata sender/session validation and stale-session rejection");
+    const auto bundled = LoadLibraryW(L"../../../../Engine/Binaries/ThirdParty/Steamworks/Steamv161/Win64/steam_api64.dll");
+    if (bundled) {
+        for (const char* name : {"SteamAPI_SteamNetworking_v006", "SteamAPI_ISteamNetworking_SendP2PPacket",
+            "SteamAPI_ISteamNetworking_IsP2PPacketAvailable", "SteamAPI_ISteamNetworking_ReadP2PPacket",
+            "SteamAPI_ISteamNetworking_AcceptP2PSessionWithUser", "SteamAPI_ISteamNetworking_CloseP2PChannelWithUser"}) {
+            if (!GetProcAddress(bundled, name)) return 8;
+        }
+        FreeLibrary(bundled);
+        puts("PASS bundled Steam API exports required by lobby metadata");
+    }
     puts("PASS strict Steam address validation and accepted-invite callback handoff");
     return 0;
 }

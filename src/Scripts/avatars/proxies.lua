@@ -1,33 +1,41 @@
 local R = require('shared.runtime')
 local Names = require('avatars.nameplates')
+local Motion = require('avatars.motion')
+local Weapons = require('avatars.weapons')
 local Avatars = {}
 
 function Avatars.create(config)
     config = config or {}
     local self = {peers = {}, assets = nil}
     local function destroy(peer)
+        Weapons.clear(peer)
         for _, actor in ipairs(peer.parts) do
             if R.valid(actor) then actor:SetActorHiddenInGame(true); actor:K2_DestroyActor() end
         end
     end
     function self:clear()
-        for _, peer in pairs(self.peers) do destroy(peer) end
+        if next(self.peers) == nil then return end
+        if self.world == R.worldKey() then for _, peer in pairs(self.peers) do destroy(peer) end end
         self.peers = {}
     end
     function self:prepare()
         if self.assets and R.valid(self.assets.mesh) and R.valid(self.assets.pose) then return end
-        local mesh = LoadAsset('/Game/Geometry/Characters/Bunkerkeeper/Keeper.Keeper')
-        local pose = LoadAsset('/Game/Geometry/Characters/Bunkerkeeper/Animations/Keeper_ThumbsUp.Keeper_ThumbsUp')
+        local animated = config.AvatarModel ~= 'Keeper'
+        local mesh = LoadAsset(animated and '/Game/Geometry/Targets/Humanoid_02/Knight.Knight' or '/Game/Geometry/Characters/Bunkerkeeper/Keeper.Keeper')
+        local pose = LoadAsset(animated and '/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_IdleKnight.Humanoid_IdleKnight' or '/Game/Geometry/Characters/Bunkerkeeper/Animations/Keeper_ThumbsUp.Keeper_ThumbsUp')
+        local walk = animated and LoadAsset('/Game/Geometry/Targets/Humanoid_02/Animation/Humanoid_WalkKnight.Humanoid_WalkKnight') or nil
         assert(R.valid(mesh) and R.valid(pose), 'Lobby character assets unavailable')
+        assert(R.name(mesh.Skeleton) == R.name(pose.Skeleton), 'Player animation skeleton mismatch')
+        if animated then assert(R.valid(walk) and R.name(walk.Skeleton) == R.name(mesh.Skeleton), 'Walking animation skeleton mismatch') end
         local bounds = mesh:GetBounds()
         local height = bounds.BoxExtent.Z * 2
         assert(height > 20 and height < 1000, 'Unexpected character mesh dimensions')
-        self.assets = {mesh = mesh, pose = pose, scale = (config.AvatarHeight or 180) / height,
+        self.assets = {mesh = mesh, pose = pose, walk = walk, animated = animated, scale = (config.AvatarHeight or 180) / height,
             bottom = bounds.Origin.Z - bounds.BoxExtent.Z}
     end
     function self:spawn(pawn)
         self:prepare()
-        local parts = {}
+        local parts, handBone = {}, nil
         local ok, err = pcall(function()
             local world = R.world()
             local actor = world:SpawnActor(StaticFindObject('/Script/Engine.SkeletalMeshActor'),
@@ -40,17 +48,26 @@ function Avatars.create(config)
             mesh:SetMobility(2)
             mesh:SetCollisionEnabled(0)
             mesh:SetSkeletalMeshAsset(self.assets.mesh)
-            mesh:PlayAnimation(self.assets.pose, false)
+            mesh:PlayAnimation(self.assets.pose, self.assets.animated)
             mesh:SetPosition(0, false)
-            mesh:SetPlayRate(0)
+            mesh:SetPlayRate(self.assets.animated and 1 or 0)
+            for _, name in ipairs({'hand_r', 'DEF-hand_R', 'mixamorig:RightHand', 'RightHand'}) do
+                if mesh:GetBoneIndex(FName(name)) >= 0 then handBone = FName(name); break end
+            end
             local scale = self.assets.scale
             actor:SetActorScale3D({X = scale, Y = scale, Z = scale})
             parts[#parts + 1] = Names.spawn(world, config.NameplateSize or 14)
         end)
         if not ok then destroy({parts = parts}); error(err) end
-        return {pawn = pawn, parts = parts}
+        local p, r = pawn:K2_GetActorLocation(), pawn:K2_GetActorRotation()
+        return {pawn = pawn, parts = parts, position = Motion.copy(p), yaw = r.Yaw, walking = false, handBone = handBone}
     end
     function self:sync(roster)
+        local world = R.worldKey()
+        if self.world ~= world then self:clear(); self.world, self.lastTime = world, nil end
+        local now = R.gameplay():GetRealTimeSeconds(R.world())
+        local dt = self.lastTime and now > self.lastTime and math.min(now - self.lastTime, 0.1) or 0.016
+        self.lastTime = now
         local seen = {}
         local camera = R.gameplay():GetPlayerCameraManager(R.world(), 0)
         local cameraPosition = R.valid(camera) and camera:GetCameraLocation() or nil
@@ -64,13 +81,26 @@ function Avatars.create(config)
                     self.peers[entry.id] = peer
                 end
                 local p, rotation = entry.pawn:K2_GetActorLocation(), entry.pawn:K2_GetActorRotation()
+                local speed
+                peer.position, peer.yaw, speed = Motion.step(peer.position, peer.yaw, p, rotation.Yaw, dt,
+                    config.SmoothingSpeed or 14, config.TeleportSnapDistance or 500)
+                p = peer.position
+                if self.assets.animated then
+                    local walking = speed > (peer.walking and 8 or 18)
+                    local mesh = peer.parts[1].SkeletalMeshComponent
+                    if walking ~= peer.walking then mesh:PlayAnimation(walking and self.assets.walk or self.assets.pose, true); peer.walking = walking end
+                    mesh:SetPlayRate(walking and math.max(0.6, math.min(speed / 140, 1.8)) or 1)
+                end
                 local halfHeight = 88
                 local ok, capsule = pcall(function() return entry.pawn.CapsuleComponent end)
                 if ok and R.valid(capsule) then halfHeight = capsule:GetScaledCapsuleHalfHeight() end
                 local feet = p.Z - halfHeight
                 peer.parts[1]:K2_SetActorLocationAndRotation(
                     {X = p.X, Y = p.Y, Z = feet - self.assets.bottom * self.assets.scale},
-                    {Pitch = 0, Yaw = rotation.Yaw + (config.AvatarYawOffset or -90), Roll = 0}, false, {}, true)
+                    {Pitch = 0, Yaw = peer.yaw + (config.AvatarYawOffset or -90), Roll = 0}, false, {}, true)
+                local feetPosition = {X = p.X, Y = p.Y, Z = feet}
+                local grip = peer.handBone and peer.parts[1].SkeletalMeshComponent:GetSocketLocation(peer.handBone) or nil
+                Weapons.sync(peer, entry.gear or '', feetPosition, peer.yaw, grip)
                 Names.update(peer.parts[2], entry.name,
                     {X = p.X, Y = p.Y, Z = feet + (config.AvatarHeight or 180) + (config.NameplateHeight or 24)}, cameraPosition)
             end

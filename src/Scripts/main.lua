@@ -2,12 +2,14 @@ local R = require('shared.runtime')
 local config = require('config')
 local session = require('lobby.session').create(config)
 local avatars = require('avatars.proxies').create(config)
-local version = '0.1.2-player-models'
+local version = '0.2.0-beta'
 local queued, stopped, lastTick, lastRoster = false, false, 0, 0
 local roster = {}
+local worldKey = ''
+session.beforeTravel = function() avatars:clear(); roster = {} end
 local function run(action)
     local ok, err = pcall(action)
-    if not ok then R.log('Action failed: ' .. tostring(err)) end
+    if not ok then session.actionError = tostring(err); R.log('Action failed: ' .. tostring(err)) end
     return ok
 end
 local ui = require('ui.panel').create(config, session, run)
@@ -18,6 +20,9 @@ LoopAsync(config.AvatarRefreshMs or 100, function()
     queued = true
     ExecuteInGameThread(function()
         local ok, err = pcall(function()
+            if not R.valid(R.world()) then return end
+            local currentWorld = R.worldKey()
+            if currentWorld ~= worldKey then worldKey, roster, lastRoster = currentWorld, {}, -1 end
             local now = os.time()
             if now ~= lastTick then
                 lastTick = now
@@ -25,8 +30,13 @@ LoopAsync(config.AvatarRefreshMs or 100, function()
                 session.invites:tick(session)
                 ui:update()
             end
+            local clock = R.gameplay():GetRealTimeSeconds(R.world())
+            if clock < lastRoster or clock - lastRoster >= 0.25 then
+                lastRoster = clock
+                session:updatePlayers()
+                roster = session:roster()
+            end
             if session:active() then
-                if now ~= lastRoster then lastRoster = now; roster = session:roster() end
                 avatars:sync(roster)
             else
                 avatars:clear()
@@ -50,6 +60,7 @@ RegisterKeyBind(Key.F10, {ModifierKey.CONTROL}, function()
             R.log(string.format('v%s | %s | players=%d | world=%s | driver=%s | %s',
                 version, session.phase, session.players, R.level(), R.name(session.transport:driver()), session.message))
             R.log('Steam invites: ' .. session.invites.message)
+            R.log('Lobby metadata: ' .. session.metadata.message .. ' | local ready=' .. tostring(session.localReady))
         end)
     end)
 end)

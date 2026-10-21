@@ -1,4 +1,5 @@
 local R = require('shared.runtime')
+local Steam = require('network.steam')
 local Invites = {}
 local script = debug.getinfo(1, 'S').source:gsub('^@', ''):gsub('\\', '/')
 local directory = script:match('^(.*)/Scripts/network/invites.lua$')
@@ -48,9 +49,9 @@ function Invites.create()
         local request = read('accepted.txt')
         if request == '' or request == self.previous then return end
         self.previous = request
-        local address = request:match('^%d+\n(steam%.7656119%d+:7777)$')
+        local address = request:match('^%d+\n(steam%.%d+:7777)$')
         local id = address and address:match('^steam%.(%d+):7777$')
-        if not id or #id ~= 17 then R.log('Ignored malformed invite connection information.'); return end
+        if not Steam.validId(id) then R.log('Ignored malformed invite connection information.'); return end
         if session.phase ~= 'idle' and session.phase ~= 'failed' then R.log('Invite accepted while already in a lobby; leave before accepting another invite.'); return end
         R.log('Steam invite accepted; connecting to host.')
         session:join(id)
