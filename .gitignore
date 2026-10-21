@@ -3,6 +3,10 @@
 /dist/
 /artifacts/
 
+# Local Nexus description drafts
+/NEXUS_SHORT_DESCRIPTION.txt
+/NEXUS_LONG_DESCRIPTION.txt
+
 # Generated Steam bridge and runtime handoff files; rebuild with native/build.ps1
 /src/Native/
 
