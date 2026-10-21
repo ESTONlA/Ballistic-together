@@ -1,0 +1,25 @@
+# Local diagnostics, test captures, save backups and generated packages
+/dev/
+/dist/
+/artifacts/
+
+# Generated Steam bridge and runtime handoff files; rebuild with native/build.ps1
+/src/Native/
+
+# Compiler intermediates and local IDE state
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.pch
+/.vs/
+*.user
+*.suo
+
+# Temporary files and operating-system metadata
+*.log
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store
